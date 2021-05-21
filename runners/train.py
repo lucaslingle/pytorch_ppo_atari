@@ -1,11 +1,10 @@
 import torch as tc
 from runners.runner import Runner
-from utils.checkpoint_util import save_checkpoint, maybe_load_checkpoint
+from runners.constants import ROOT_RANK
+from utils.checkpoint_util import maybe_load_checkpoint, save_checkpoint
 from utils.comm_util import sync_params, sync_grads
 from utils.stat_util import standardize
 from utils.dataset_util import Dataset
-
-ROOT_RANK = 0
 
 
 class Trainer(Runner):

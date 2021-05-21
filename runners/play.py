@@ -1,6 +1,7 @@
 import torch as tc
 from runners.runner import Runner
 from utils.checkpoint_util import maybe_load_checkpoint
+from runners.constants import ROOT_RANK
 
 
 class Player(Runner):
@@ -29,7 +30,7 @@ class Player(Runner):
             o_t = o_tp1
 
     def run(self):
-        if self.agent.comm.Get_rank() == 0:
+        if self.agent.comm.Get_rank() == ROOT_RANK:
             maybe_load_checkpoint(
                 checkpoint_dir=self.args.checkpoint_dir,
                 model_name=self.args.model_name,
