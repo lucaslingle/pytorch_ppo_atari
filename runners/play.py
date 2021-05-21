@@ -24,11 +24,10 @@ class Player(Runner):
                 total_reward += r_t
                 t += 1
                 if done_t:
+                    print(f"Episode finished after {t} timesteps.")
+                    print(f"Total reward was {total_reward}.")
                     break
                 o_t = o_tp1
-
-            print(f"Episode finished after {t} timesteps.")
-            print(f"Total reward was {total_reward}.")
 
     def run(self):
         maybe_load_checkpoint(

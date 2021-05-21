@@ -2,6 +2,9 @@ import torch as tc
 from runners.runner import Runner
 from utils.checkpoint_util import save_checkpoint, maybe_load_checkpoint
 from utils.comm_util import sync_params, sync_grads
+from utils.stat_util import standardize
+from utils.dataset_util import Dataset
+
 
 
 class Trainer(Runner):
@@ -91,14 +94,41 @@ class Trainer(Runner):
             delta_t = -V_t + r_t + gamma * (1.-float(done_t)) * V_tp1
             advantages[t-1] = delta_t + gamma * lam * (1.-float(done_t)) * advantages[t]
 
-        seg["advantages"] = advantages[0:-1]
+        seg["advantage_estimates"] = advantages[0:-1]
         seg["value_estimates"] = seg["value_estimates"][0:-1]
-        seg["td_lambda_returns"] = seg["advantages"] + seg["value_estimates"]
+        seg["td_lambda_returns"] = seg["advantage_estimates"] + seg["value_estimates"]
         return seg
 
     @staticmethod
-    def train(env, agent, args):
+    def compute_losses(model, batch):
         raise NotImplementedError
+
+    @staticmethod
+    def train(env, agent, args):
+        sync_params(model=agent.model, comm=agent.comm)
+        seg_generator = Trainer.trajectory_segment_generator(
+            env=env, model=agent.model, timesteps_per_actorbatch=args.timesteps_per_actorbatch)
+
+        env_steps_so_far = 0
+        while env_steps_so_far < args.env_steps:
+            seg = next(seg_generator)
+            seg['advantage_estimates'] = standardize(seg['advantage_estimates'])
+            dataset = Dataset(data_map={
+                'obs': seg['observations'],
+                'acs': seg['actions'],
+                'logprobs': seg['logprobs'],
+                'vtargs': seg['td_lambda_returns'],
+                'adv': seg['advantage_estimates']
+            })
+            for batch in dataset.iterate_once(batch_size=args.optim_batchsize):
+                agent.optimizer.zero_grad()
+                losses = Trainer.compute_losses(model=agent.model, batch=batch)
+                losses['total_loss'].backward()
+                sync_grads(model=agent.model, comm=agent.comm)
+                agent.optimizer.step()
+                agent.scheduler.step()
+
+            env_steps_so_far += args.timesteps_per_actorbatch * agent.comm.Get_size()
 
     def run(self):
         maybe_load_checkpoint(
