@@ -15,7 +15,7 @@ class Trainer(Runner):
 
     @staticmethod
     @tc.no_grad()
-    def trajectory_segment_generator(env, model, timesteps_per_actorbatch):
+    def __trajectory_segment_generator(env, model, timesteps_per_actorbatch):
         t = 0
         o_t = env.reset()
 
@@ -79,7 +79,7 @@ class Trainer(Runner):
 
     @staticmethod
     @tc.no_grad()
-    def add_vtarg_and_adv(seg, gamma, lam):
+    def __add_vtarg_and_adv(seg, gamma, lam):
         """
         Compute target value using TD(lambda) estimator, and advantage with GAE(lambda)
         """
@@ -100,19 +100,19 @@ class Trainer(Runner):
         return seg
 
     @staticmethod
-    def compute_losses(model, batch):
+    def __compute_losses(model, batch):
         raise NotImplementedError
 
     @staticmethod
-    def train(env, agent, args):
+    def __train(env, agent, args):
         sync_params(model=agent.model, comm=agent.comm)
-        seg_generator = Trainer.trajectory_segment_generator(
+        seg_generator = Trainer.__trajectory_segment_generator(
             env=env, model=agent.model, timesteps_per_actorbatch=args.timesteps_per_actorbatch)
 
         env_steps_so_far = 0
         while env_steps_so_far < args.env_steps:
             seg = next(seg_generator)
-            seg = Trainer.add_vtarg_and_adv(seg, gamma=args.discount_gamma, lam=args.gae_lambda)
+            seg = Trainer.__add_vtarg_and_adv(seg, gamma=args.discount_gamma, lam=args.gae_lambda)
             seg['advantage_estimates'] = standardize(seg['advantage_estimates'])
             dataset = Dataset(data_map={
                 'obs': seg['observations'],
@@ -124,7 +124,7 @@ class Trainer(Runner):
             for _ in range(args.optim_epochs):
                 for batch in dataset.iterate_once(batch_size=args.optim_batchsize):
                     agent.optimizer.zero_grad()
-                    losses = Trainer.compute_losses(model=agent.model, batch=batch)
+                    losses = Trainer.__compute_losses(model=agent.model, batch=batch)
                     losses['total_loss'].backward()
                     sync_grads(model=agent.model, comm=agent.comm)
                     agent.optimizer.step()
@@ -139,7 +139,7 @@ class Trainer(Runner):
             agent=self.agent
         )
 
-        self.train(
+        self.__train(
             env=self.env,
             agent=self.agent,
             args=self.args
