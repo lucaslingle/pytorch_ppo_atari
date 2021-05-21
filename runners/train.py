@@ -102,11 +102,11 @@ class Trainer(Runner):
     @staticmethod
     def __compute_losses(model, batch, clip_param, entcoeff):
         # get relevant info from minibatch dict
-        mb_obs = batch["ob"]
-        mb_acs = batch["ac"]
+        mb_obs = batch["obs"]
+        mb_acs = batch["acs"]
         mb_logpi_old = batch["logprobs"]
-        mb_advs = batch["adv"]
-        mb_vtargs = batch["vtarg"]
+        mb_advs = batch["advs"]
+        mb_vtargs = batch["vtargs"]
 
         # cast to correct type
         mb_obs = tc.FloatTensor(mb_obs).detach()
@@ -161,7 +161,7 @@ class Trainer(Runner):
                 'acs': seg['actions'],
                 'logprobs': seg['logprobs'],
                 'vtargs': seg['td_lambda_returns'],
-                'adv': seg['advantage_estimates']
+                'advs': seg['advantage_estimates']
             })
             for _ in range(args.optim_epochs):
                 for batch in dataset.iterate_once(batch_size=args.optim_batchsize):
