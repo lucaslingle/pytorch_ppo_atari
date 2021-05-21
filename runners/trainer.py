@@ -87,8 +87,8 @@ class Trainer(Runner):
             V_t = seg['value_estimates'][t-1]
             V_tp1 = seg['value_estimates'][t]
 
-            delta_t = -V_t + r_t + gamma * (1.-done_t) * V_tp1
-            advantages[t-1] = delta_t + gamma * lam * (1.-done_t) * advantages[t]
+            delta_t = -V_t + r_t + gamma * (1.-float(done_t)) * V_tp1
+            advantages[t-1] = delta_t + gamma * lam * (1.-float(done_t)) * advantages[t]
 
         seg["advantages"] = advantages[0:-1]
         seg["value_estimates"] = seg["value_estimates"][0:-1]
