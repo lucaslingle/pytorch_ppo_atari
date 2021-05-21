@@ -160,8 +160,8 @@ class Trainer(Runner):
                 'obs': seg['observations'],
                 'acs': seg['actions'],
                 'logprobs': seg['logprobs'],
-                'advs': seg['advantage_estimates'],
-                'vtargs': seg['td_lambda_returns']
+                'vtargs': seg['td_lambda_returns'],
+                'advs': seg['advantage_estimates']
             })
             for _ in range(args.optim_epochs):
                 for batch in dataset.iterate_once(batch_size=args.optim_batchsize):
