@@ -12,7 +12,7 @@ def main(args):
 
     worker_seed = set_seed(args, comm)
     env = get_env(args, worker_seed)
-    agent = get_agent(args)
+    agent = get_agent(args, comm)
 
     runners = {
         'train': Trainer(env, agent, args),
