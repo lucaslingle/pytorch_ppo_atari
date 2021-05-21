@@ -79,7 +79,7 @@ class Trainer(Runner):
 
     @staticmethod
     @tc.no_grad()
-    def compute_vtarg_and_adv(seg, gamma, lam):
+    def add_vtarg_and_adv(seg, gamma, lam):
         """
         Compute target value using TD(lambda) estimator, and advantage with GAE(lambda)
         """
@@ -112,6 +112,7 @@ class Trainer(Runner):
         env_steps_so_far = 0
         while env_steps_so_far < args.env_steps:
             seg = next(seg_generator)
+            seg = Trainer.add_vtarg_and_adv(seg, gamma=args.discount_gamma, lam=args.gae_lambda)
             seg['advantage_estimates'] = standardize(seg['advantage_estimates'])
             dataset = Dataset(data_map={
                 'obs': seg['observations'],
