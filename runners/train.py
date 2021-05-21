@@ -100,8 +100,50 @@ class Trainer(Runner):
         return seg
 
     @staticmethod
-    def __compute_losses(model, batch):
-        raise NotImplementedError
+    def __compute_losses(model, batch, clip_param, entcoeff):
+        # get relevant info from minibatch dict
+        mb_obs = batch["ob"]
+        mb_acs = batch["ac"]
+        mb_logpi_old = batch["logprobs"]
+        mb_advs = batch["adv"]
+        mb_vtargs = batch["vtarg"]
+
+        # cast to correct type
+        mb_obs = tc.FloatTensor(mb_obs).detach()
+        mb_acs = tc.LongTensor(mb_acs).detach()
+        mb_logpi_old = tc.FloatTensor(mb_logpi_old).detach()
+        mb_advs = tc.FloatTensor(mb_advs).detach()
+        mb_vtargs = tc.FloatTensor(mb_vtargs).detach()
+
+        # evaluate observations using agent
+        mb_pi_dist, mb_vpred_new = model(mb_obs)
+        mb_logpi_new = mb_pi_dist.log_prob(mb_acs)
+
+        # entropy
+        ent = mb_pi_dist.entropy()
+        meanent = tc.mean(ent)
+        pol_entpen = (-entcoeff) * meanent
+
+        # ppo policy loss
+        policy_ratio = tc.exp(mb_logpi_new - mb_logpi_old)
+        clipped_policy_ratio = tc.clip(policy_ratio, 1.0 - clip_param, 1.0 + clip_param)
+        surr1 = mb_advs * policy_ratio
+        surr2 = mb_advs * clipped_policy_ratio
+        pol_surr = -tc.mean(tc.min(surr1, surr2))
+
+        # ppo value loss
+        vf_loss = tc.mean(tc.square(mb_vtargs - mb_vpred_new))
+
+        # total loss
+        total_loss = pol_surr + pol_entpen + vf_loss
+
+        return {
+            "pol_surr": pol_surr,
+            "pol_entpen": pol_entpen,
+            "vf_loss": vf_loss,
+            "meanent": meanent,
+            "total_loss": total_loss
+        }
 
     @staticmethod
     def __train(env, agent, args):
@@ -124,7 +166,9 @@ class Trainer(Runner):
             for _ in range(args.optim_epochs):
                 for batch in dataset.iterate_once(batch_size=args.optim_batchsize):
                     agent.optimizer.zero_grad()
-                    losses = Trainer.__compute_losses(model=agent.model, batch=batch)
+                    losses = Trainer.__compute_losses(
+                        model=agent.model, batch=batch, clip_param=args.ppo_epsilon,
+                        entcoeff=args.entropy_coef)
                     losses['total_loss'].backward()
                     sync_grads(model=agent.model, comm=agent.comm)
                     agent.optimizer.step()
