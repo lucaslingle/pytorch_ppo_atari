@@ -75,6 +75,7 @@ class Trainer(Runner):
             o_t = o_tp1
 
     @staticmethod
+    @tc.no_grad()
     def compute_vtarg_and_adv(seg, gamma, lam):
         """
         Compute target value using TD(lambda) estimator, and advantage with GAE(lambda)
