@@ -27,6 +27,9 @@ class Player(Runner):
                     break
                 o_t = o_tp1
 
+            print(f"Episode finished after {t} timesteps.")
+            print(f"Total reward was {total_reward}.")
+
     def run(self):
         maybe_load_checkpoint(
             checkpoint_dir=self.args.checkpoint_dir,
@@ -37,6 +40,5 @@ class Player(Runner):
         self.play(
             env=self.env,
             agent=self.agent,
-            env_steps=args.env_steps
+            env_steps=self.args.env_steps
         )
-
