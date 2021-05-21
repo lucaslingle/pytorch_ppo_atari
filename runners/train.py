@@ -1,7 +1,7 @@
 import torch as tc
-from utils.comm_util import sync_params, sync_grads
+from runners.runner import Runner
 from utils.checkpoint_util import save_checkpoint, maybe_load_checkpoint
-from runner import Runner
+from utils.comm_util import sync_params, sync_grads
 
 
 class Trainer(Runner):

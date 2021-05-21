@@ -1,5 +1,5 @@
 import torch as tc
-from runner import Runner
+from runners.runner import Runner
 from utils.checkpoint_util import maybe_load_checkpoint
 
 
