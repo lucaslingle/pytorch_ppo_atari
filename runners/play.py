@@ -11,7 +11,7 @@ class Player(Runner):
 
     @staticmethod
     @tc.no_grad()
-    def play(env, agent, env_steps):
+    def __play(env, agent, env_steps):
         if agent.comm.Get_rank() == 0:
             t = 0
             total_reward = 0.0
@@ -36,7 +36,7 @@ class Player(Runner):
             agent=self.agent
         )
 
-        self.play(
+        self.__play(
             env=self.env,
             agent=self.agent,
             env_steps=self.args.env_steps
