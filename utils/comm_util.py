@@ -7,10 +7,10 @@ def get_comm():
     comm = MPI.COMM_WORLD
     return comm
 
-def sync_params(model, comm):
+def sync_params(model, comm, root):
     for p in model.parameters():
         p_data = p.data.numpy()
-        comm.Bcast(p_data, root=0)
+        comm.Bcast(p_data, root=root)
         p.copy_(tc.FloatTensor(p_data))
 
 def sync_grads(model, comm):

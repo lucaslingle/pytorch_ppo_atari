@@ -5,6 +5,7 @@ from utils.comm_util import sync_params, sync_grads
 from utils.stat_util import standardize
 from utils.dataset_util import Dataset
 
+ROOT_RANK = 0
 
 
 class Trainer(Runner):
@@ -147,7 +148,7 @@ class Trainer(Runner):
 
     @staticmethod
     def __train(env, agent, args):
-        sync_params(model=agent.model, comm=agent.comm)
+        sync_params(model=agent.model, comm=agent.comm, root=ROOT_RANK)
         seg_generator = Trainer.__trajectory_segment_generator(
             env=env, model=agent.model, timesteps_per_actorbatch=args.timesteps_per_actorbatch)
 
@@ -177,11 +178,12 @@ class Trainer(Runner):
             env_steps_so_far += args.timesteps_per_actorbatch * agent.comm.Get_size()
 
     def run(self):
-        maybe_load_checkpoint(
-            checkpoint_dir=self.args.checkpoint_dir,
-            model_name=self.args.model_name,
-            agent=self.agent
-        )
+        if self.agent.comm.Get_rank() == ROOT_RANK:
+            maybe_load_checkpoint(
+                checkpoint_dir=self.args.checkpoint_dir,
+                model_name=self.args.model_name,
+                agent=self.agent
+            )
 
         self.__train(
             env=self.env,

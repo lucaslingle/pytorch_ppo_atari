@@ -12,32 +12,32 @@ class Player(Runner):
     @staticmethod
     @tc.no_grad()
     def __play(env, agent, env_steps):
-        if agent.comm.Get_rank() == 0:
-            t = 0
-            total_reward = 0.0
-            o_t = env.reset()
-            while t < env_steps:
-                _ = env.render()
-                pi_dist, vpred = agent.model(tc.FloatTensor(o_t).unsqueeze(0))
-                a_t = pi_dist.sample()
-                o_tp1, r_t, done_t, _ = env.step(a_t.squeeze(0).detach().numpy())
-                total_reward += r_t
-                t += 1
-                if done_t:
-                    print(f"Episode finished after {t} timesteps.")
-                    print(f"Total reward was {total_reward}.")
-                    break
-                o_t = o_tp1
+        t = 0
+        total_reward = 0.0
+        o_t = env.reset()
+        while t < env_steps:
+            _ = env.render()
+            pi_dist, vpred = agent.model(tc.FloatTensor(o_t).unsqueeze(0))
+            a_t = pi_dist.sample()
+            o_tp1, r_t, done_t, _ = env.step(a_t.squeeze(0).detach().numpy())
+            total_reward += r_t
+            t += 1
+            if done_t:
+                print(f"Episode finished after {t} timesteps.")
+                print(f"Total reward was {total_reward}.")
+                break
+            o_t = o_tp1
 
     def run(self):
-        maybe_load_checkpoint(
-            checkpoint_dir=self.args.checkpoint_dir,
-            model_name=self.args.model_name,
-            agent=self.agent
-        )
+        if self.agent.comm.Get_rank() == 0:
+            maybe_load_checkpoint(
+                checkpoint_dir=self.args.checkpoint_dir,
+                model_name=self.args.model_name,
+                agent=self.agent
+            )
 
-        self.__play(
-            env=self.env,
-            agent=self.agent,
-            env_steps=self.args.env_steps
-        )
+            self.__play(
+                env=self.env,
+                agent=self.agent,
+                env_steps=self.args.env_steps
+            )
