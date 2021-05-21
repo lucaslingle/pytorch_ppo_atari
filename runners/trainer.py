@@ -46,7 +46,7 @@ class Trainer(Runner):
                     "actions": actions,
                     "rewards": rewards,
                     "dones": dones,
-                    "value_estimates": value_estimates  # length is timesteps_per_actorbatch for GAE.
+                    "value_estimates": value_estimates  # length is timesteps_per_actorbatch+1 for GAE.
                 }
                 observations = []
                 logprobs = []
