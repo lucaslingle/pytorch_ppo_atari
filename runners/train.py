@@ -120,13 +120,14 @@ class Trainer(Runner):
                 'vtargs': seg['td_lambda_returns'],
                 'adv': seg['advantage_estimates']
             })
-            for batch in dataset.iterate_once(batch_size=args.optim_batchsize):
-                agent.optimizer.zero_grad()
-                losses = Trainer.compute_losses(model=agent.model, batch=batch)
-                losses['total_loss'].backward()
-                sync_grads(model=agent.model, comm=agent.comm)
-                agent.optimizer.step()
-                agent.scheduler.step()
+            for _ in range(args.optim_epochs):
+                for batch in dataset.iterate_once(batch_size=args.optim_batchsize):
+                    agent.optimizer.zero_grad()
+                    losses = Trainer.compute_losses(model=agent.model, batch=batch)
+                    losses['total_loss'].backward()
+                    sync_grads(model=agent.model, comm=agent.comm)
+                    agent.optimizer.step()
+                    agent.scheduler.step()
 
             env_steps_so_far += args.timesteps_per_actorbatch * agent.comm.Get_size()
 
