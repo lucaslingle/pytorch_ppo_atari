@@ -2,7 +2,7 @@ from utils.atari_wrappers import make_atari, wrap_deepmind
 from utils.monitor_util import Monitor
 
 
-def get_env(args, seed, comm):
+def get_env(args, comm, seed):
     env = make_atari(args.env_name)
     env.seed(seed)
     env = Monitor(env, monitoring_dir=args.monitoring_dir, model_name=args.model_name, comm=comm)
