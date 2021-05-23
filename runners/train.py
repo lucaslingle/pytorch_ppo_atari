@@ -1,4 +1,5 @@
 import torch as tc
+from collections import deque
 from runners.runner import Runner
 from runners.constants import ROOT_RANK
 from utils.checkpoint_util import maybe_load_checkpoint, save_checkpoint
@@ -19,10 +20,13 @@ class Trainer(Runner):
         t = 0
         o_t = env.reset()
 
-        episode_returns = []
         episode_lengths = []
-        current_episode_return = 0.0
+        episode_returns = []
+        episode_returns_unclipped = []
+
         current_episode_length = 0
+        current_episode_return = 0.0
+        current_episode_return_unclipped = []
 
         observations = []
         logprobs = []
@@ -49,7 +53,10 @@ class Trainer(Runner):
                     "actions": actions,
                     "rewards": rewards,
                     "dones": dones,
-                    "value_estimates": value_estimates  # length is timesteps_per_actorbatch+1 for GAE.
+                    "value_estimates": value_estimates,  # length is timesteps_per_actorbatch+1 for GAE.
+                    "episode_lengths": episode_lengths,
+                    "episode_returns": episode_returns,
+                    "episode_returns_unclipped": episode_returns_unclipped
                 }
                 observations = []
                 logprobs = []
@@ -58,7 +65,11 @@ class Trainer(Runner):
                 dones = []
                 value_estimates = []
 
-            o_tp1, r_t, done_t, _ = env.step(a_t.numpy())
+                episode_lengths = []
+                episode_returns = []
+                episode_returns_unclipped = []
+
+            o_tp1, r_t, done_t, info_t = env.step(a_t.numpy())
 
             observations.append(o_t)
             logprobs.append(logprob_a_t)
@@ -67,11 +78,17 @@ class Trainer(Runner):
             dones.append(done_t)
             value_estimates.append(vpred_t)
 
+            current_episode_length += 1
+            current_episode_return += r_t
+            current_episode_return_unclipped += info_t['monitored_reward']
+
             if done_t:
-                episode_returns.append(current_episode_return)
                 episode_lengths.append(current_episode_length)
-                current_episode_return = 0.0
+                episode_returns.append(current_episode_return)
+                episode_returns_unclipped.append(current_episode_return_unclipped)
                 current_episode_length = 0
+                current_episode_return = 0.0
+                current_episode_return_unclipped = 0.0
                 o_tp1 = env.reset()
 
             t += 1
@@ -151,7 +168,12 @@ class Trainer(Runner):
         seg_generator = Trainer.__trajectory_segment_generator(
             env=env, model=agent.model, timesteps_per_actorbatch=args.timesteps_per_actorbatch)
 
+        length_buffer = deque(maxlen=100)
+        return_buffer = deque(maxlen=100)
+        return_unclipped_buffer = deque(maxlen=100)
+
         env_steps_so_far = 0
+        iterations_thus_far = 0
         while env_steps_so_far < args.env_steps:
             seg = next(seg_generator)
             seg = Trainer.__add_vtarg_and_adv(seg, gamma=args.discount_gamma, lam=args.gae_lambda)
@@ -175,6 +197,21 @@ class Trainer(Runner):
                     agent.scheduler.step()
 
             env_steps_so_far += args.timesteps_per_actorbatch * agent.comm.Get_size()
+            iterations_thus_far += 1
+            length_buffer.extend(seg['episode_lengths'])
+            return_buffer.extend(seg['episode_returns'])
+            return_unclipped_buffer.extend(seg['episode_returns_unclipped'])
+
+            # TODO(lucaslingle):
+            #   create a print_util.py and add an explained_variance func in stat_util.py
+
+            if iterations_thus_far > 0 and iterations_thus_far % args.checkpoint_interval == 0:
+                if agent.comm.Get_rank() == ROOT_RANK:
+                    save_checkpoint(
+                        checkpoint_dir=args.checkpoint_dir,
+                        model_name=args.model_name,
+                        agent=agent
+                    )
 
     def run(self):
         if self.agent.comm.Get_rank() == ROOT_RANK:

@@ -1,4 +1,4 @@
-import torch as tc
+import numpy as np
 
 
 class Dataset:
@@ -8,14 +8,10 @@ class Dataset:
         self._next_idx = 0
 
     def __shuffle(self):
-        perm = tc.randperm(self.n)
+        perm = np.random.permutation(self.n)
 
         for key in self.data_map:
-            _perm = perm
-            while len(_perm.shape) < len(self.data_map[key].shape):
-                _perm = _perm[..., None]
-            self.data_map[key] = tc.gather(
-                input=self.data_map[key], dim=0, index=_perm)
+            self.data_map[key] = self.data_map[key][perm]
 
         self._next_idx = 0
 

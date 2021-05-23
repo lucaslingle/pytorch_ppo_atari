@@ -10,6 +10,7 @@ def parse_args():
     parser.add_argument("--mode", choices=['train', 'play'], default='train')
     parser.add_argument("--model_name", type=str, default='model-paper-defaults')
     parser.add_argument("--checkpoint_dir", type=str, default='checkpoints')
+    parser.add_argument("--checkpoint_interval", type=int, default=100)
     parser.add_argument("--timesteps_per_actorbatch", type=int, default=128)
     parser.add_argument("--optim_batchsize", type=int, default=32)
     parser.add_argument("--optim_epochs", type=int, default=3)
@@ -18,8 +19,10 @@ def parse_args():
     parser.add_argument("--gae_lambda", type=float, default=0.95)
     parser.add_argument("--discount_gamma", type=float, default=0.99)
     parser.add_argument("--entropy_coef", type=float, default=0.01)
-    parser.add_argument("--model_size", type=str, default='small')
-    parser.add_argument("--frame_stacking", type=bool, default=True)
+    parser.add_argument("--model_size", choices=['small', 'large'], default='small')
+    parser.add_argument("--no_frame_stacking", dest='frame_stacking', action='store_false')
+    parser.add_argument("--monitoring_dir", type=str, default='monitoring')
+    parser.add_argument("--asset_dir", type=str, default='assets')
     args = parser.parse_args()
 
     return args
