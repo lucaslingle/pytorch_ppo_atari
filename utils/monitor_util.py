@@ -25,7 +25,7 @@ class ResultWriter:
         self.write_column_names()
 
     def write_column_names(self):
-        with open(self.monitoring_file, 'w') as f:
+        with open(self.monitoring_file, 'w+') as f:
             line = ", ".join(self.column_names)
             f.write(line)
 
@@ -37,7 +37,7 @@ class ResultWriter:
         if len(row_dict) != len(self.column_names):
             raise RuntimeError("Wrong number of columns!")
 
-        with open(self.monitoring_file, 'w') as f:
+        with open(self.monitoring_file, 'a') as f:
             line = ", ".join([row_dict[col] for col in self.column_names])
             f.write(line)
 
