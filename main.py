@@ -11,7 +11,7 @@ def main(args):
     comm = get_comm()
 
     worker_seed = set_seed(args, comm)
-    env = get_env(args, worker_seed, comm)
+    env = get_env(args, comm, worker_seed)
     agent = get_agent(args, comm)
 
     runners = {
