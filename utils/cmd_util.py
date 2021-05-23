@@ -15,7 +15,7 @@ def parse_args():
     parser.add_argument("--optim_batchsize", type=int, default=32)
     parser.add_argument("--optim_epochs", type=int, default=3)
     parser.add_argument("--optim_stepsize", type=float, default=2.5e-4)
-    parser.add_argument("--ppo_epsilon", type=float, default=0.2)
+    parser.add_argument("--ppo_epsilon", type=float, default=0.1)
     parser.add_argument("--gae_lambda", type=float, default=0.95)
     parser.add_argument("--discount_gamma", type=float, default=0.99)
     parser.add_argument("--entropy_coef", type=float, default=0.01)
