@@ -219,7 +219,7 @@ class Trainer(Runner):
                     model=agent.model, batch=batch, clip_param=args.ppo_epsilon,
                     entcoeff=args.entropy_coef)
                 n_batches += 1
-                newlosses = dict(list(map(lambda kv: (kv[0], kv[1].detach().numpy()), newlosses)))
+                newlosses = dict(list(map(lambda kv: (kv[0], kv[1].detach().numpy()), newlosses.items())))
                 for name in newlosses:
                     if name not in losses:
                         losses[name] = 0.0
