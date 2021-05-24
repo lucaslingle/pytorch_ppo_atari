@@ -27,7 +27,8 @@ class ResultWriter:
     def write_column_names(self):
         with open(self.monitoring_file, 'w+') as f:
             line = ", ".join(self.column_names)
-            f.write(line)
+            f.write(line + "\n")
+            f.flush()
 
     def write_row(self, row_dict):
         """
@@ -38,8 +39,9 @@ class ResultWriter:
             raise RuntimeError("Wrong number of columns!")
 
         with open(self.monitoring_file, 'a') as f:
-            line = ", ".join([row_dict[col] for col in self.column_names])
-            f.write(line)
+            line = ", ".join([str(row_dict[col]) for col in self.column_names])
+            f.write(line + "\n")
+            f.flush()
 
 
 class Monitor(Wrapper):

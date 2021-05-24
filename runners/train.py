@@ -1,4 +1,6 @@
 import torch as tc
+import numpy as np
+from mpi4py import MPI
 from collections import deque
 from runners.runner import Runner
 from runners.constants import ROOT_RANK
@@ -7,7 +9,6 @@ from utils.comm_util import sync_params, sync_grads
 from utils.stat_util import standardize, explained_variance
 from utils.dataset_util import Dataset
 from utils.print_util import pretty_print
-import numpy as np
 
 
 class Trainer(Runner):
@@ -160,13 +161,6 @@ class Trainer(Runner):
 
     @staticmethod
     def __train(env, agent, args):
-
-        # TODO(lucaslingle):
-        #   (1) create a print_util.py
-        #   (2) add an explained_variance func in stat_util.py
-        #   (3) figure out how to print global metrics based on each process
-        #   (4) figure out how to get explained variance's inputs out of the loop.
-
         sync_params(model=agent.model, comm=agent.comm, root=ROOT_RANK)
         seg_generator = Trainer.__trajectory_segment_generator(
             env=env, model=agent.model, timesteps_per_actorbatch=args.timesteps_per_actorbatch)
@@ -179,6 +173,9 @@ class Trainer(Runner):
         env_steps_so_far = 0
         iterations_thus_far = 0
         while env_steps_so_far < args.env_steps:
+            if iterations_thus_far == 7:
+                print("OMG set a breakpoint here")
+
             seg = next(seg_generator)
             seg = Trainer.__add_vtarg_and_adv(seg, gamma=args.discount_gamma, lam=args.gae_lambda)
             seg['advantage_estimates'] = standardize(seg['advantage_estimates'])
@@ -204,8 +201,17 @@ class Trainer(Runner):
             iterations_thus_far += 1
 
             # metrics
-            _ = map(lambda name: buffers[name].append(agent.comm.allgather(seg[name])), metric_names)
-            metrics = {name: np.mean(buffers[name]) for name in metric_names}
+            metrics = {}
+            metrics['iteration'] = iterations_thus_far
+            for name in metric_names:
+                metric_values_local = seg[name]
+                metric_values_global = agent.comm.allgather(metric_values_local)
+                metric_values_global = [x for loc in metric_values_global for x in loc]
+                buffers[name].extend(metric_values_global)
+
+                metric_value_mean = np.mean(buffers[name])
+                metrics[name] = metric_value_mean
+
             metrics.update({name+'_bufferlen': len(buffers[name]) for name in metric_names})
             metrics['ev_tdlam_before'] = explained_variance(
                 ypred=seg['value_estimates'], y=seg['td_lambda_returns'])
