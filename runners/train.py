@@ -1,6 +1,5 @@
 import torch as tc
 import numpy as np
-from mpi4py import MPI
 from collections import deque
 from runners.runner import Runner
 from runners.constants import ROOT_RANK
@@ -200,6 +199,7 @@ class Trainer(Runner):
             # metrics
             metrics = dict()
             metrics['iteration'] = iterations_thus_far
+            metrics['env_steps'] = env_steps_so_far
             for name in metric_names:
                 metric_values_local = seg[name]
                 metric_values_global = agent.comm.allgather(metric_values_local)
