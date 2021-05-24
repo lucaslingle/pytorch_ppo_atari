@@ -207,7 +207,7 @@ class Trainer(Runner):
                 metric_values_global = [x for loc in metric_values_global for x in loc]
                 buffers[name].extend(metric_values_global)
                 metric_value_mean = np.mean(buffers[name])
-                metrics[name] = metric_value_mean
+                metrics['mean_' + name] = metric_value_mean
 
             metrics['ev_tdlam_before'] = explained_variance(
                 ypred=seg['value_estimates'], y=seg['td_lambda_returns'])
@@ -234,7 +234,12 @@ class Trainer(Runner):
                 metrics['loss_' + name] = losses[name]
 
             if agent.comm.Get_rank() == ROOT_RANK:
-                pretty_print(metrics)
+                print("-" * 100)
+                maxlen_name_len = max(len(name) for name in metrics)
+                for name, value in metrics.items():
+                    blankspace = " " * (maxlen_name_len - len(name) + 1)
+                    print(f"{name}: {blankspace}{value:>0.1f}")
+                print("-" * 100)
                 if iterations_thus_far % args.checkpoint_interval == 0:
                     save_checkpoint(
                         checkpoint_dir=args.checkpoint_dir,
