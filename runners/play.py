@@ -12,7 +12,7 @@ class Player(Runner):
 
     @staticmethod
     @tc.no_grad()
-    def __play(env, agent, env_steps):
+    def _play(env, agent, env_steps):
         t = 0
         total_reward = 0.0
         o_t = env.reset()
@@ -37,7 +37,7 @@ class Player(Runner):
                 agent=self.agent
             )
 
-            self.__play(
+            self._play(
                 env=self.env,
                 agent=self.agent,
                 env_steps=self.args.env_steps

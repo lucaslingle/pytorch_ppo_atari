@@ -19,7 +19,7 @@ class Trainer(Runner):
 
     @staticmethod
     @tc.no_grad()
-    def __trajectory_segment_generator(env, model, timesteps_per_actorbatch):
+    def _trajectory_segment_generator(env, model, timesteps_per_actorbatch):
         t = 0
         o_t = env.reset()
 
@@ -93,7 +93,7 @@ class Trainer(Runner):
 
     @staticmethod
     @tc.no_grad()
-    def __add_vtarg_and_adv(seg, gamma, lam):
+    def _add_vtarg_and_adv(seg, gamma, lam):
         """
         Compute target value using TD(lambda) estimator, and advantage with GAE(lambda)
         """
@@ -114,7 +114,7 @@ class Trainer(Runner):
         return seg
 
     @staticmethod
-    def __compute_losses(model, batch, clip_param, entcoeff):
+    def _compute_losses(model, batch, clip_param, entcoeff):
         # get relevant info from minibatch dict
         mb_obs = batch["obs"]
         mb_acs = batch["acs"]
@@ -160,9 +160,9 @@ class Trainer(Runner):
         }
 
     @staticmethod
-    def __train(env, agent, args):
+    def _train(env, agent, args):
         sync_params(model=agent.model, comm=agent.comm, root=ROOT_RANK)
-        seg_generator = Trainer.__trajectory_segment_generator(
+        seg_generator = Trainer._trajectory_segment_generator(
             env=env, model=agent.model, timesteps_per_actorbatch=args.timesteps_per_actorbatch)
 
         metric_names = ['episode_lengths', 'episode_returns', 'episode_returns_unclipped']
@@ -174,7 +174,7 @@ class Trainer(Runner):
         iterations_thus_far = 0
         while env_steps_so_far < args.env_steps:
             seg = next(seg_generator)
-            seg = Trainer.__add_vtarg_and_adv(seg, gamma=args.discount_gamma, lam=args.gae_lambda)
+            seg = Trainer._add_vtarg_and_adv(seg, gamma=args.discount_gamma, lam=args.gae_lambda)
             seg['advantage_estimates'] = standardize(seg['advantage_estimates'])
             dataset = Dataset(data_map={
                 'obs': seg['observations'],
@@ -186,7 +186,7 @@ class Trainer(Runner):
             for _ in range(args.optim_epochs):
                 for batch in dataset.iterate_once(batch_size=args.optim_batchsize):
                     agent.optimizer.zero_grad()
-                    losses = Trainer.__compute_losses(
+                    losses = Trainer._compute_losses(
                         model=agent.model, batch=batch, clip_param=args.ppo_epsilon,
                         entcoeff=args.entropy_coef)
                     losses['total_loss'].backward()
@@ -215,7 +215,7 @@ class Trainer(Runner):
             losses = dict()
             n_batches = 0
             for batch in dataset.iterate_once(batch_size=args.optim_batchsize):
-                newlosses = Trainer.__compute_losses(
+                newlosses = Trainer._compute_losses(
                     model=agent.model, batch=batch, clip_param=args.ppo_epsilon,
                     entcoeff=args.entropy_coef)
                 n_batches += 1
@@ -258,7 +258,7 @@ class Trainer(Runner):
                 agent=self.agent
             )
 
-        self.__train(
+        self._train(
             env=self.env,
             agent=self.agent,
             args=self.args
