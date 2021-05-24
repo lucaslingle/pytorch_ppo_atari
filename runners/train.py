@@ -228,7 +228,7 @@ class Trainer(Runner):
             for name in losses:
                 loss_values_local = losses[name] / n_batches
                 loss_values_global = agent.comm.allreduce(loss_values_local, op=MPI.SUM)
-                losses[name] = loss_values_global
+                losses[name] = loss_values_global / agent.comm.Get_size()
 
             for name in losses:
                 metrics['loss_' + name] = losses[name]
