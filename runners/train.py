@@ -1,14 +1,14 @@
 import torch as tc
 import numpy as np
 from mpi4py import MPI
-from collections import deque
+from collections import deque, Counter
 from runners.runner import Runner
 from runners.constants import ROOT_RANK
 from utils.checkpoint_util import maybe_load_checkpoint, save_checkpoint
 from utils.comm_util import sync_params, sync_grads
 from utils.stat_util import standardize, explained_variance
 from utils.dataset_util import Dataset
-from utils.print_util import pretty_print
+from utils.print_util import print_metrics
 
 
 class Trainer(Runner):
@@ -160,6 +160,48 @@ class Trainer(Runner):
         }
 
     @staticmethod
+    @tc.no_grad()
+    def _collect_metrics(
+            metric_names, buffers, seg, dataset, args, agent,
+            iterations_thus_far, env_steps_so_far
+    ):
+
+        # metrics
+        metrics = Counter()  # dict with addition op.
+        metrics['iteration'] = iterations_thus_far
+        metrics['env_steps'] = env_steps_so_far
+        for name in metric_names:
+            metric_values_local = seg[name]
+            metric_values_global = agent.comm.allgather(metric_values_local)
+            metric_values_global = [x for loc in metric_values_global for x in loc]
+            buffers[name].extend(metric_values_global)
+            metric_value_mean = np.mean(buffers[name])
+            metrics['mean_' + name] = metric_value_mean
+
+        metrics['ev_tdlam_before'] = explained_variance(
+            ypred=seg['value_estimates'], y=seg['td_lambda_returns'])
+
+        losses = Counter()
+        n_batches = 0
+        for batch in dataset.iterate_once(batch_size=args.optim_batchsize):
+            batch_losses = Trainer._compute_losses(
+                model=agent.model, batch=batch, clip_param=args.ppo_epsilon,
+                entcoeff=args.entropy_coef)
+            n_batches += 1
+            batch_losses = Counter(
+                map(lambda kv: (kv[0], kv[1].detach().numpy()), batch_losses.items())
+            )
+            losses += batch_losses
+
+        for name in losses:
+            loss_values_local = losses[name] / n_batches  # local avg from sum.
+            loss_values_global = agent.comm.allreduce(loss_values_local, op=MPI.SUM)  # global sum.
+            losses[name] = loss_values_global / agent.comm.Get_size()  # global avg.
+            metrics['loss_' + name] = losses[name]
+
+        return metrics
+
+    @staticmethod
     def _train(env, agent, args):
         sync_params(model=agent.model, comm=agent.comm, root=ROOT_RANK)
         seg_generator = Trainer._trajectory_segment_generator(
@@ -198,51 +240,12 @@ class Trainer(Runner):
             iterations_thus_far += 1
 
             # metrics
-            metrics = dict()
-            metrics['iteration'] = iterations_thus_far
-            metrics['env_steps'] = env_steps_so_far
-            for name in metric_names:
-                metric_values_local = seg[name]
-                metric_values_global = agent.comm.allgather(metric_values_local)
-                metric_values_global = [x for loc in metric_values_global for x in loc]
-                buffers[name].extend(metric_values_global)
-                metric_value_mean = np.mean(buffers[name])
-                metrics['mean_' + name] = metric_value_mean
-
-            metrics['ev_tdlam_before'] = explained_variance(
-                ypred=seg['value_estimates'], y=seg['td_lambda_returns'])
-
-            losses = dict()
-            n_batches = 0
-            for batch in dataset.iterate_once(batch_size=args.optim_batchsize):
-                newlosses = Trainer._compute_losses(
-                    model=agent.model, batch=batch, clip_param=args.ppo_epsilon,
-                    entcoeff=args.entropy_coef)
-                n_batches += 1
-                newlosses = dict(list(map(lambda kv: (kv[0], kv[1].detach().numpy()), newlosses.items())))
-                for name in newlosses:
-                    if name not in losses:
-                        losses[name] = 0.0
-                    losses[name] += newlosses[name]
-
-            for name in losses:
-                loss_values_local = losses[name] / n_batches
-                loss_values_global = agent.comm.allreduce(loss_values_local, op=MPI.SUM)
-                losses[name] = loss_values_global / agent.comm.Get_size()
-
-            for name in losses:
-                metrics['loss_' + name] = losses[name]
+            metrics = Trainer._collect_metrics(
+                metric_names, buffers, seg, dataset, args, agent,
+                iterations_thus_far, env_steps_so_far)
 
             if agent.comm.Get_rank() == ROOT_RANK:
-                print("-" * 100)
-                maxlen_name_len = max(len(name) for name in metrics)
-                for name, value in metrics.items():
-                    blankspace = " " * (maxlen_name_len - len(name) + 1)
-                    if name.startswith("loss_"):
-                        print(f"{name}: {blankspace}{value:>0.2f}")
-                    else:
-                        print(f"{name}: {blankspace}{value:>0.1f}")
-                print("-" * 100)
+                print_metrics(metrics)
                 if iterations_thus_far % args.checkpoint_interval == 0:
                     save_checkpoint(
                         checkpoint_dir=args.checkpoint_dir,
