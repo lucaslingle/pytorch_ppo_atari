@@ -9,7 +9,6 @@
 from gym.core import Wrapper
 import os
 import time
-from mpi4py import MPI
 
 
 class ResultWriter:
@@ -63,7 +62,7 @@ class Monitor(Wrapper):
         os.makedirs(self.monitoring_dir, exist_ok=True)
 
         self.metric_names = [
-            "env_steps",
+            "local_steps",
             "episode_len",
             "episode_rew",
             "episode_sec"
@@ -78,11 +77,8 @@ class Monitor(Wrapper):
 
     def reset(self):
         ob = self.env.reset()
-
-        self.env_steps = self.comm.allreduce(self.local_steps, op=MPI.SUM)
-
         self.stats = {k: 0.0 for k in self.metric_names}
-        self.stats['env_steps'] = self.env_steps  # env steps at start of episode
+        self.stats['local_steps'] = self.local_steps
         self.stats['episode_starttime'] = time.perf_counter()
         return ob
 

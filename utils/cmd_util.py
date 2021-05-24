@@ -10,7 +10,7 @@ def parse_args():
     parser.add_argument("--mode", choices=['train', 'play'], default='train')
     parser.add_argument("--model_name", type=str, default='model-paper-defaults')
     parser.add_argument("--checkpoint_dir", type=str, default='checkpoints')
-    parser.add_argument("--checkpoint_interval", type=int, default=100)
+    parser.add_argument("--checkpoint_interval", type=int, default=10)
     parser.add_argument("--timesteps_per_actorbatch", type=int, default=128)
     parser.add_argument("--optim_batchsize", type=int, default=32)
     parser.add_argument("--optim_epochs", type=int, default=3)

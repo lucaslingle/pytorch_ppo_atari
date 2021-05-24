@@ -173,9 +173,6 @@ class Trainer(Runner):
         env_steps_so_far = 0
         iterations_thus_far = 0
         while env_steps_so_far < args.env_steps:
-            if iterations_thus_far == 7:
-                print("OMG set a breakpoint here")
-
             seg = next(seg_generator)
             seg = Trainer.__add_vtarg_and_adv(seg, gamma=args.discount_gamma, lam=args.gae_lambda)
             seg['advantage_estimates'] = standardize(seg['advantage_estimates'])
@@ -208,19 +205,15 @@ class Trainer(Runner):
                 metric_values_global = agent.comm.allgather(metric_values_local)
                 metric_values_global = [x for loc in metric_values_global for x in loc]
                 buffers[name].extend(metric_values_global)
-
                 metric_value_mean = np.mean(buffers[name])
                 metrics[name] = metric_value_mean
 
-            metrics.update({name+'_bufferlen': len(buffers[name]) for name in metric_names})
             metrics['ev_tdlam_before'] = explained_variance(
                 ypred=seg['value_estimates'], y=seg['td_lambda_returns'])
+
             if agent.comm.Get_rank() == ROOT_RANK:
                 pretty_print(metrics)
-
-            # checkpoints
-            if iterations_thus_far > 0 and iterations_thus_far % args.checkpoint_interval == 0:
-                if agent.comm.Get_rank() == ROOT_RANK:
+                if iterations_thus_far % args.checkpoint_interval == 0:
                     save_checkpoint(
                         checkpoint_dir=args.checkpoint_dir,
                         model_name=args.model_name,
