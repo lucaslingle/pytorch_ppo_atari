@@ -198,7 +198,7 @@ class Trainer(Runner):
             iterations_thus_far += 1
 
             # metrics
-            metrics = {}
+            metrics = dict()
             metrics['iteration'] = iterations_thus_far
             for name in metric_names:
                 metric_values_local = seg[name]
