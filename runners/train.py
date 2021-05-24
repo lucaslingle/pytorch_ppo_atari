@@ -1,5 +1,6 @@
 import torch as tc
 import numpy as np
+from mpi4py import MPI
 from collections import deque
 from runners.runner import Runner
 from runners.constants import ROOT_RANK
@@ -182,6 +183,7 @@ class Trainer(Runner):
                 'vtargs': seg['td_lambda_returns'],
                 'advs': seg['advantage_estimates']
             })
+            print("""************ Training... ************""")
             for _ in range(args.optim_epochs):
                 for batch in dataset.iterate_once(batch_size=args.optim_batchsize):
                     agent.optimizer.zero_grad()
@@ -210,6 +212,28 @@ class Trainer(Runner):
 
             metrics['ev_tdlam_before'] = explained_variance(
                 ypred=seg['value_estimates'], y=seg['td_lambda_returns'])
+
+            print("""************ Evaluating... ************""")
+            losses = dict()
+            n_batches = 0
+            for batch in dataset.iterate_once(batch_size=args.optim_batchsize):
+                newlosses = Trainer.__compute_losses(
+                    model=agent.model, batch=batch, clip_param=args.ppo_epsilon,
+                    entcoeff=args.entropy_coef)
+                n_batches += 1
+
+                for name in newlosses:
+                    if name not in newlosses:
+                        losses[name] = 0.0
+                    losses[name] += newlosses[name]
+
+            for name in losses:
+                loss_values_local = losses[name] / n_batches
+                loss_values_global = agent.comm.allreduce(loss_values_local, op=MPI.SUM)
+                losses[name] = loss_values_global
+
+            for name in losses:
+                metrics['loss_' + name] = losses[name]
 
             if agent.comm.Get_rank() == ROOT_RANK:
                 pretty_print(metrics)
