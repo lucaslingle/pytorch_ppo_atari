@@ -4,8 +4,10 @@ from runners.runner import Runner
 from runners.constants import ROOT_RANK
 from utils.checkpoint_util import maybe_load_checkpoint, save_checkpoint
 from utils.comm_util import sync_params, sync_grads
-from utils.stat_util import standardize
+from utils.stat_util import standardize, explained_variance
 from utils.dataset_util import Dataset
+from utils.print_util import pretty_print
+import numpy as np
 
 
 class Trainer(Runner):
@@ -26,14 +28,14 @@ class Trainer(Runner):
 
         current_episode_length = 0
         current_episode_return = 0.0
-        current_episode_return_unclipped = []
+        current_episode_return_unclipped = 0.0
 
-        observations = []
-        logprobs = []
-        actions = []
-        rewards = []
-        dones = []
-        value_estimates = []
+        observations = np.array([o_t for _ in range(timesteps_per_actorbatch)])
+        logprobs = np.zeros(timesteps_per_actorbatch, 'float32')
+        actions = np.zeros(timesteps_per_actorbatch, 'int64')
+        rewards = np.zeros(timesteps_per_actorbatch, 'float32')
+        dones = np.zeros(timesteps_per_actorbatch, 'float32')
+        value_estimates = np.zeros(timesteps_per_actorbatch+1, 'float32')
 
         model.eval()
         while True:
@@ -41,12 +43,12 @@ class Trainer(Runner):
             a_t = pi_dist_t.sample()
             logprob_a_t = pi_dist_t.log_prob(a_t)
 
-            a_t = a_t.squeeze(0).detach()
-            logprob_a_t = logprob_a_t.squeeze(0).detach()
-            vpred_t = vpred_t.squeeze(0).detach()
+            a_t = a_t.squeeze(0).detach().numpy()
+            logprob_a_t = logprob_a_t.squeeze(0).detach().numpy()
+            vpred_t = vpred_t.squeeze(0).detach().numpy()
 
             if t > 0 and t % timesteps_per_actorbatch == 0:
-                value_estimates.append(vpred_t)
+                value_estimates[-1] = vpred_t
                 yield {
                     "observations": observations,
                     "logprobs": logprobs,
@@ -58,25 +60,19 @@ class Trainer(Runner):
                     "episode_returns": episode_returns,
                     "episode_returns_unclipped": episode_returns_unclipped
                 }
-                observations = []
-                logprobs = []
-                actions = []
-                rewards = []
-                dones = []
-                value_estimates = []
-
                 episode_lengths = []
                 episode_returns = []
                 episode_returns_unclipped = []
 
-            o_tp1, r_t, done_t, info_t = env.step(a_t.numpy())
+            o_tp1, r_t, done_t, info_t = env.step(a_t)
 
-            observations.append(o_t)
-            logprobs.append(logprob_a_t)
-            actions.append(a_t)
-            rewards.append(r_t)
-            dones.append(done_t)
-            value_estimates.append(vpred_t)
+            i = t % timesteps_per_actorbatch
+            observations[i] = o_t
+            logprobs[i] = logprob_a_t
+            actions[i] = a_t
+            rewards[i] = r_t
+            dones[i] = done_t
+            value_estimates[i] = vpred_t
 
             current_episode_length += 1
             current_episode_return += r_t
@@ -101,7 +97,7 @@ class Trainer(Runner):
         Compute target value using TD(lambda) estimator, and advantage with GAE(lambda)
         """
         T = len(seg['actions'])
-        advantages = tc.zeros(size=(T+1,))
+        advantages = np.zeros(T+1, 'float32')
         for t in reversed(range(1, T+1)):  # T, ..., 1.
             done_t = seg['dones'][t-1]
             r_t = seg['rewards'][t-1]
@@ -164,13 +160,21 @@ class Trainer(Runner):
 
     @staticmethod
     def __train(env, agent, args):
+
+        # TODO(lucaslingle):
+        #   (1) create a print_util.py
+        #   (2) add an explained_variance func in stat_util.py
+        #   (3) figure out how to print global metrics based on each process
+        #   (4) figure out how to get explained variance's inputs out of the loop.
+
         sync_params(model=agent.model, comm=agent.comm, root=ROOT_RANK)
         seg_generator = Trainer.__trajectory_segment_generator(
             env=env, model=agent.model, timesteps_per_actorbatch=args.timesteps_per_actorbatch)
 
-        length_buffer = deque(maxlen=100)
-        return_buffer = deque(maxlen=100)
-        return_unclipped_buffer = deque(maxlen=100)
+        metric_names = ['episode_lengths', 'episode_returns', 'episode_returns_unclipped']
+        buffers = {
+            name: deque(maxlen=100) for name in metric_names
+        }
 
         env_steps_so_far = 0
         iterations_thus_far = 0
@@ -198,13 +202,17 @@ class Trainer(Runner):
 
             env_steps_so_far += args.timesteps_per_actorbatch * agent.comm.Get_size()
             iterations_thus_far += 1
-            length_buffer.extend(seg['episode_lengths'])
-            return_buffer.extend(seg['episode_returns'])
-            return_unclipped_buffer.extend(seg['episode_returns_unclipped'])
 
-            # TODO(lucaslingle):
-            #   create a print_util.py and add an explained_variance func in stat_util.py
+            # metrics
+            _ = map(lambda name: buffers[name].append(agent.comm.allgather(seg[name])), metric_names)
+            metrics = {name: np.mean(buffers[name]) for name in metric_names}
+            metrics.update({name+'_bufferlen': len(buffers[name]) for name in metric_names})
+            metrics['ev_tdlam_before'] = explained_variance(
+                ypred=seg['value_estimates'], y=seg['td_lambda_returns'])
+            if agent.comm.Get_rank() == ROOT_RANK:
+                pretty_print(metrics)
 
+            # checkpoints
             if iterations_thus_far > 0 and iterations_thus_far % args.checkpoint_interval == 0:
                 if agent.comm.Get_rank() == ROOT_RANK:
                     save_checkpoint(

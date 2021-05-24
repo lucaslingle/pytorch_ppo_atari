@@ -6,15 +6,15 @@ import torch as tc
 Agent = namedtuple('Agent', field_names=['model', 'optimizer', 'scheduler', 'comm'])
 
 
-def get_agent(args, comm):
-    hparams = get_hparams(args)
+def get_agent(args, comm, env):
+    hparams = get_hparams(args, env)
     model = CnnPolicy(hparams)
     optimizer = tc.optim.Adam(model.parameters(), lr=args.optim_stepsize, eps=1e-5)
 
-    max_grad_steps = args.optim_epochs * args.env_steps // args.optim_batchsize
+    max_grad_steps = int(args.optim_epochs * args.env_steps // args.optim_batchsize)
     scheduler = tc.optim.lr_scheduler.OneCycleLR(
         optimizer=optimizer,
-        max_lr=args.lr,
+        max_lr=args.optim_stepsize,
         total_steps=max_grad_steps,
         pct_start=0.0,
         anneal_strategy='linear',

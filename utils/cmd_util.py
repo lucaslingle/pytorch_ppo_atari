@@ -23,6 +23,7 @@ def parse_args():
     parser.add_argument("--no_frame_stacking", dest='frame_stacking', action='store_false')
     parser.add_argument("--monitoring_dir", type=str, default='monitoring')
     parser.add_argument("--asset_dir", type=str, default='assets')
+    parser.add_argument("--rng_seed", type=str, default=0)
     args = parser.parse_args()
 
     return args

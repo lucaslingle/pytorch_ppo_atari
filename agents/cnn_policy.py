@@ -14,7 +14,7 @@ class NatureCNN(tc.nn.Module):
         super().__init__()
         self._feature_dim = 512
         self.conv_stack = tc.nn.Sequential(
-            tc.nn.Conv2d(hparams.img_chan * hparams.frame_stack, 32, kernel_size=(8,8), stride=(4,4)),
+            tc.nn.Conv2d(hparams.img_chan, 32, kernel_size=(8,8), stride=(4,4)),
             tc.nn.ReLU(),
             tc.nn.Conv2d(32, 64, kernel_size=(4,4), stride=(2,2)),
             tc.nn.ReLU(),
@@ -52,7 +52,7 @@ class AsyncCNN(tc.nn.Module):
         super().__init__()
         self._feature_dim = 256
         self.conv_stack = tc.nn.Sequential(
-            tc.nn.Conv2d(hparams.img_chan * hparams.frame_stack, 16, kernel_size=(8,8), stride=(4,4)),
+            tc.nn.Conv2d(hparams.img_chan, 16, kernel_size=(8,8), stride=(4,4)),
             tc.nn.ReLU(),
             tc.nn.Conv2d(16, 32, kernel_size=(4,4), stride=(2,2)),
             tc.nn.ReLU(),
@@ -82,12 +82,16 @@ class AsyncCNN(tc.nn.Module):
 class CnnPolicy(tc.nn.Module):
     def __init__(self, hparams):
         super().__init__()
-        if hparams.size == 'small':
-            self.conv_stack = AsyncCNN(hparams)
-        elif hparams.size == 'large':
-            self.conv_stack = NatureCNN(hparams)
 
         self.preprocessor = ConvPreprocess()
+        if hparams.model_size == 'small':
+            self.conv_stack = AsyncCNN(hparams)
+        elif hparams.model_size == 'large':
+            self.conv_stack = NatureCNN(hparams)
+
+        self.feature_dim = self.conv_stack.feature_dim
+        self.num_actions = hparams.num_actions
+
         self.policy_head = PolicyHead(self.feature_dim, self.num_actions)
         self.value_head = ValueHead(self.feature_dim)
 

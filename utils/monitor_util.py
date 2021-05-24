@@ -77,8 +77,7 @@ class Monitor(Wrapper):
     def reset(self):
         ob = self.env.reset()
 
-        self.env_steps = 0  # reset the receiver
-        self.comm.allreduce(self.local_steps, self.env_steps, op=MPI.SUM)
+        self.env_steps = self.comm.allreduce(self.local_steps, op=MPI.SUM)
 
         self.stats = {k: 0.0 for k in self.metric_names}
         self.stats['env_steps'] = self.env_steps  # env steps at start of episode
