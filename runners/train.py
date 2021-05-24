@@ -183,7 +183,6 @@ class Trainer(Runner):
                 'vtargs': seg['td_lambda_returns'],
                 'advs': seg['advantage_estimates']
             })
-            print("""************ Training... ************""")
             for _ in range(args.optim_epochs):
                 for batch in dataset.iterate_once(batch_size=args.optim_batchsize):
                     agent.optimizer.zero_grad()
@@ -213,7 +212,6 @@ class Trainer(Runner):
             metrics['ev_tdlam_before'] = explained_variance(
                 ypred=seg['value_estimates'], y=seg['td_lambda_returns'])
 
-            print("""************ Evaluating... ************""")
             losses = dict()
             n_batches = 0
             for batch in dataset.iterate_once(batch_size=args.optim_batchsize):
