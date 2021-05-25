@@ -159,6 +159,7 @@ class Trainer(Runner):
             "total_loss": total_loss
         }
 
+
     @staticmethod
     @tc.no_grad()
     def _metric_logger():
@@ -186,17 +187,20 @@ class Trainer(Runner):
             metrics['ev_tdlam_before'] = explained_variance(
                 ypred=seg['value_estimates'], y=seg['td_lambda_returns'])
 
-            losses = Counter()
+            losses = dict()
             n_batches = 0
             for batch in dataset.iterate_once(batch_size=args.optim_batchsize):
                 batch_losses = Trainer._compute_losses(
                     model=agent.model, batch=batch, clip_param=args.ppo_epsilon,
                     entcoeff=args.entropy_coef)
                 n_batches += 1
-                batch_losses = Counter(
+                batch_losses = dict(list(
                     map(lambda kv: (kv[0], kv[1].detach().numpy()), batch_losses.items())
-                )
-                losses += batch_losses
+                ))
+                for name in batch_losses:
+                    if name not in losses:
+                        losses[name] = 0.0
+                    losses[name] += batch_losses[name]
 
             for name in losses:
                 loss_values_local = losses[name] / n_batches  # local avg from sum.
@@ -256,13 +260,6 @@ class Trainer(Runner):
         seg_generator = Trainer._trajectory_segment_generator(
             env=env, model=agent.model, timesteps_per_actorbatch=args.timesteps_per_actorbatch)
 
-        """
-        metric_names = ['episode_lengths', 'episode_returns', 'episode_returns_unclipped']
-        buffers = {
-            name: deque(maxlen=100) for name in metric_names
-        }
-        """
-
         compute_metrics = Trainer._metric_logger()
 
         env_steps_so_far = 0
@@ -291,11 +288,6 @@ class Trainer(Runner):
 
             env_steps_so_far += args.timesteps_per_actorbatch * agent.comm.Get_size()
             iterations_thus_far += 1
-
-            # metrics
-            #metrics = Trainer._collect_metrics(
-            #    metric_names, buffers, seg, dataset, args, agent,
-            #    iterations_thus_far, env_steps_so_far)
 
             metrics = compute_metrics(
                 seg, dataset, args, agent, iterations_thus_far, env_steps_so_far)
