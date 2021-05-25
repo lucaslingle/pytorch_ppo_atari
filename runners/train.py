@@ -162,6 +162,7 @@ class Trainer(Runner):
     @staticmethod
     @tc.no_grad()
     def _metric_logger():
+        # this is a closure encapsulating some queues and a metric update op.
 
         metric_names = ['episode_lengths', 'episode_returns', 'episode_returns_unclipped']
         buffers = {
@@ -172,20 +173,24 @@ class Trainer(Runner):
             seg, dataset, args, agent,
             iterations_thus_far, env_steps_so_far
         ):
+
             metrics = dict()
             metrics['iteration'] = iterations_thus_far
             metrics['env_steps'] = env_steps_so_far
+
+            # metrics with heterogeneous counts per process need to be updated using an allgather.
             for name in metric_names:
-                metric_values_local = seg[name]
-                metric_values_global = agent.comm.allgather(metric_values_local)
-                metric_values_global = [x for loc in metric_values_global for x in loc]
-                buffers[name].extend(metric_values_global)
+                metric_locals = seg[name]
+                metric_globals = agent.comm.allgather(metric_locals)
+                metric_globals_flat = [x for loc in metric_globals for x in loc]
+                buffers[name].extend(metric_globals_flat)  # we use buffers for rolling mean
                 metric_value_mean = np.mean(buffers[name])
                 metrics['mean_' + name] = metric_value_mean
 
             metrics['ev_tdlam_before'] = explained_variance(
                 ypred=seg['value_estimates'], y=seg['td_lambda_returns'])
 
+            # metrics with homogenous counts per process can be updated using an allreduce.
             losses = dict()
             n_batches = 0
             for batch in dataset.iterate_once(batch_size=args.optim_batchsize):
@@ -202,10 +207,10 @@ class Trainer(Runner):
                     losses[name] += batch_losses[name]
 
             for name in losses:
-                loss_values_local_mean = losses[name] / n_batches  # local avg from sum.
-                loss_values_global_sum = agent.comm.allreduce(loss_values_local_mean, op=MPI.SUM)  # global sum.
-                loss_values_global_mean = loss_values_global_sum / agent.comm.Get_size()  # global avg.
-                metrics['loss_' + name] = loss_values_global_mean
+                loss_value_local_mean = losses[name] / n_batches
+                loss_value_global_sum = agent.comm.allreduce(loss_value_local_mean, op=MPI.SUM)
+                loss_value_global_mean = loss_value_global_sum / agent.comm.Get_size()
+                metrics['loss_' + name] = loss_value_global_mean
 
             return metrics
 
