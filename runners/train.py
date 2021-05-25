@@ -159,7 +159,6 @@ class Trainer(Runner):
             "total_loss": total_loss
         }
 
-
     @staticmethod
     @tc.no_grad()
     def _metric_logger():
@@ -173,7 +172,6 @@ class Trainer(Runner):
             seg, dataset, args, agent,
             iterations_thus_far, env_steps_so_far
         ):
-
             metrics = dict()
             metrics['iteration'] = iterations_thus_far
             metrics['env_steps'] = env_steps_so_far
