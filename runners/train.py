@@ -221,7 +221,6 @@ class Trainer(Runner):
         sync_params(model=agent.model, comm=agent.comm, root=ROOT_RANK)
         seg_generator = Trainer._trajectory_segment_generator(
             env=env, model=agent.model, timesteps_per_actorbatch=args.timesteps_per_actorbatch)
-
         metric_update_op = Trainer._metric_logger()
 
         env_steps_so_far = 0
