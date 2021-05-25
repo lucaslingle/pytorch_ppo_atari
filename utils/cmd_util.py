@@ -5,9 +5,9 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="""Implementation of Proximal Policy Optimization for Atari 2600 games.""")
 
-    """
+    #"""
     parser.add_argument("--env_name", type=str, default='BreakoutNoFrameskip-v4')
-    parser.add_argument("--env_steps", type=int, default=40e6)
+    parser.add_argument("--env_steps", type=int, default=10e6)
     parser.add_argument("--mode", choices=['train', 'play'], default='train')
     parser.add_argument("--model_name", type=str, default='model-paper-defaults')
     parser.add_argument("--checkpoint_dir", type=str, default='checkpoints')
@@ -26,8 +26,9 @@ def parse_args():
     parser.add_argument("--asset_dir", type=str, default='assets')
     parser.add_argument("--rng_seed", type=int, default=0)
     args = parser.parse_args()
-    """
+    #"""
 
+    """
     parser.add_argument("--env_name", type=str, default='PongNoFrameskip-v4')
     parser.add_argument("--env_steps", type=int, default=10e6)
     parser.add_argument("--mode", choices=['train', 'play'], default='train')
@@ -48,5 +49,6 @@ def parse_args():
     parser.add_argument("--asset_dir", type=str, default='assets')
     parser.add_argument("--rng_seed", type=int, default=0)
     args = parser.parse_args()
+    """
 
     return args
