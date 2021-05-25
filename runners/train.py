@@ -161,6 +161,55 @@ class Trainer(Runner):
 
     @staticmethod
     @tc.no_grad()
+    def _metric_logger():
+        metric_names = ['episode_lengths', 'episode_returns', 'episode_returns_unclipped']
+        buffers = {
+            name: deque(maxlen=100) for name in metric_names
+        }
+
+        def compute_metrics(
+            seg, dataset, args, agent,
+            iterations_thus_far, env_steps_so_far
+        ):
+            # metrics
+            metrics = Counter()  # dict with addition op.
+            metrics['iteration'] = iterations_thus_far
+            metrics['env_steps'] = env_steps_so_far
+            for name in metric_names:
+                metric_values_local = seg[name]
+                metric_values_global = agent.comm.allgather(metric_values_local)
+                metric_values_global = [x for loc in metric_values_global for x in loc]
+                buffers[name].extend(metric_values_global)
+                metric_value_mean = np.mean(buffers[name])
+                metrics['mean_' + name] = metric_value_mean
+
+            metrics['ev_tdlam_before'] = explained_variance(
+                ypred=seg['value_estimates'], y=seg['td_lambda_returns'])
+
+            losses = Counter()
+            n_batches = 0
+            for batch in dataset.iterate_once(batch_size=args.optim_batchsize):
+                batch_losses = Trainer._compute_losses(
+                    model=agent.model, batch=batch, clip_param=args.ppo_epsilon,
+                    entcoeff=args.entropy_coef)
+                n_batches += 1
+                batch_losses = Counter(
+                    map(lambda kv: (kv[0], kv[1].detach().numpy()), batch_losses.items())
+                )
+                losses += batch_losses
+
+            for name in losses:
+                loss_values_local = losses[name] / n_batches  # local avg from sum.
+                loss_values_global = agent.comm.allreduce(loss_values_local, op=MPI.SUM)  # global sum.
+                losses[name] = loss_values_global / agent.comm.Get_size()  # global avg.
+                metrics['loss_' + name] = losses[name]
+
+            return metrics
+
+        return compute_metrics
+
+    @staticmethod
+    @tc.no_grad()
     def _collect_metrics(
             metric_names, buffers, seg, dataset, args, agent,
             iterations_thus_far, env_steps_so_far
@@ -207,10 +256,14 @@ class Trainer(Runner):
         seg_generator = Trainer._trajectory_segment_generator(
             env=env, model=agent.model, timesteps_per_actorbatch=args.timesteps_per_actorbatch)
 
+        """
         metric_names = ['episode_lengths', 'episode_returns', 'episode_returns_unclipped']
         buffers = {
             name: deque(maxlen=100) for name in metric_names
         }
+        """
+
+        compute_metrics = Trainer._metric_logger()
 
         env_steps_so_far = 0
         iterations_thus_far = 0
@@ -240,9 +293,12 @@ class Trainer(Runner):
             iterations_thus_far += 1
 
             # metrics
-            metrics = Trainer._collect_metrics(
-                metric_names, buffers, seg, dataset, args, agent,
-                iterations_thus_far, env_steps_so_far)
+            #metrics = Trainer._collect_metrics(
+            #    metric_names, buffers, seg, dataset, args, agent,
+            #    iterations_thus_far, env_steps_so_far)
+
+            metrics = compute_metrics(
+                seg, dataset, args, agent, iterations_thus_far, env_steps_so_far)
 
             if agent.comm.Get_rank() == ROOT_RANK:
                 print_metrics(metrics)
