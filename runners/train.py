@@ -168,7 +168,7 @@ class Trainer(Runner):
             name: deque(maxlen=100) for name in metric_names
         }
 
-        def compute_metrics(
+        def metric_update_op(
             seg, dataset, args, agent,
             iterations_thus_far, env_steps_so_far
         ):
@@ -209,7 +209,7 @@ class Trainer(Runner):
 
             return metrics
 
-        return compute_metrics
+        return metric_update_op
 
     @staticmethod
     def _train(env, agent, args):
@@ -217,7 +217,7 @@ class Trainer(Runner):
         seg_generator = Trainer._trajectory_segment_generator(
             env=env, model=agent.model, timesteps_per_actorbatch=args.timesteps_per_actorbatch)
 
-        compute_metrics = Trainer._metric_logger()
+        metric_update_op = Trainer._metric_logger()
 
         env_steps_so_far = 0
         iterations_thus_far = 0
@@ -246,7 +246,7 @@ class Trainer(Runner):
             env_steps_so_far += args.timesteps_per_actorbatch * agent.comm.Get_size()
             iterations_thus_far += 1
 
-            metrics = compute_metrics(
+            metrics = metric_update_op(
                 seg, dataset, args, agent, iterations_thus_far, env_steps_so_far)
 
             if agent.comm.Get_rank() == ROOT_RANK:
