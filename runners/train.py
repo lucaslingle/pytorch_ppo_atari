@@ -161,7 +161,7 @@ class Trainer(Runner):
 
     @staticmethod
     @tc.no_grad()
-    def _metric_logger():
+    def _metric_update_closure():
         # this is a closure encapsulating some queues and a metric update op.
 
         metric_names = ['episode_lengths', 'episode_returns', 'episode_returns_unclipped']
@@ -221,7 +221,7 @@ class Trainer(Runner):
         sync_params(model=agent.model, comm=agent.comm, root=ROOT_RANK)
         seg_generator = Trainer._trajectory_segment_generator(
             env=env, model=agent.model, timesteps_per_actorbatch=args.timesteps_per_actorbatch)
-        metric_update_op = Trainer._metric_logger()
+        metric_update_op = Trainer._metric_update_closure()
 
         env_steps_so_far = 0
         iterations_thus_far = 0
