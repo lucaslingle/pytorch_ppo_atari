@@ -309,4 +309,4 @@ def run(env, agent, args):
             model_name=args.model_name,
             agent=agent)
 
-        _train(env=env, agent=agent, args=args)
+    _train(env=env, agent=agent, args=args)
