@@ -29,4 +29,4 @@ def run(env, agent, args):
             model_name=args.model_name,
             agent=agent)
 
-    _play(env=env, agent=agent, env_steps=args.env_steps)
+        _play(env=env, agent=agent, env_steps=args.env_steps)

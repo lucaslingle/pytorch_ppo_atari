@@ -3,8 +3,9 @@ from utils.comm_util import get_comm
 from utils.rand_util import set_seed
 from utils.env_util import get_env
 from utils.agent_util import get_agent
-from runners.train import run as trainer_run
-from runners.play import run as player_run
+from runners.train import run as train_run
+from runners.play import run as play_run
+from runners.record import run as record_run
 
 
 def main(args):
@@ -15,8 +16,9 @@ def main(args):
     agent = get_agent(args, comm, env)
 
     runners = {
-        'train': trainer_run,
-        'play': player_run
+        'train': train_run,
+        'play': play_run,
+        'record': record_run
     }
     run = runners[args.mode]
     run(env, agent, args)

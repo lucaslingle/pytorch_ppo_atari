@@ -7,7 +7,7 @@ def parse_args():
 
     parser.add_argument("--env_name", type=str, default='BreakoutNoFrameskip-v4')
     parser.add_argument("--env_steps", type=int, default=10e6)
-    parser.add_argument("--mode", choices=['train', 'play'], default='train')
+    parser.add_argument("--mode", choices=['train', 'play', 'record'], default='train')
     parser.add_argument("--model_name", type=str, default='model-paper-defaults')
     parser.add_argument("--checkpoint_dir", type=str, default='checkpoints')
     parser.add_argument("--checkpoint_interval", type=int, default=10)
