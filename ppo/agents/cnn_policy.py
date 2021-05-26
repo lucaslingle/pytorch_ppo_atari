@@ -1,8 +1,8 @@
 import torch as tc
-from agents.policy_head import PolicyHead
-from agents.value_head import ValueHead
-from agents.preprocess import ConvPreprocess
-from utils.init_util import normc_initializer
+from ppo.agents.policy_head import PolicyHead
+from ppo.agents.value_head import ValueHead
+from ppo.agents.preprocess import ConvPreprocess
+from ppo.utils.init_util import normc_initializer
 
 
 class NatureCNN(tc.nn.Module):

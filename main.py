@@ -1,11 +1,11 @@
-from utils.cmd_util import parse_args
-from utils.comm_util import get_comm
-from utils.rand_util import set_seed
-from utils.env_util import get_env
-from utils.agent_util import get_agent
-from runners.train import run as train_run
-from runners.play import run as play_run
-from runners.record import run as record_run
+from ppo.utils.cmd_util import parse_args
+from ppo.utils.comm_util import get_comm
+from ppo.utils.rand_util import set_seed
+from ppo.utils.env_util import get_env
+from ppo.utils.agent_util import get_agent
+from ppo.runners.train import run as train_run
+from ppo.runners.play import run as play_run
+from ppo.runners.record import run as record_run
 
 
 def main(args):

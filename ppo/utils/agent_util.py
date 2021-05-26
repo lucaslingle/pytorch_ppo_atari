@@ -1,6 +1,6 @@
 from collections import namedtuple
-from utils.hparam_util import get_hparams
-from agents.cnn_policy import CnnPolicy
+from ppo.utils.hparam_util import get_hparams
+from ppo.agents.cnn_policy import CnnPolicy
 import torch as tc
 
 Agent = namedtuple('Agent', field_names=['model', 'optimizer', 'scheduler', 'comm'])

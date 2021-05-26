@@ -1,5 +1,5 @@
 import torch as tc
-from utils.init_util import normc_initializer
+from ppo.utils.init_util import normc_initializer
 
 
 class ValueHead(tc.nn.Module):

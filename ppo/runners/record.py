@@ -5,8 +5,8 @@ import torch as tc
 import numpy as np
 import matplotlib.pyplot as plt
 import moviepy.editor as mpy
-from utils.constants import ROOT_RANK
-from utils.checkpoint_util import maybe_load_checkpoint
+from ppo.utils.constants import ROOT_RANK
+from ppo.utils.checkpoint_util import maybe_load_checkpoint
 
 
 def _collect_footage(env, model, max_frames):

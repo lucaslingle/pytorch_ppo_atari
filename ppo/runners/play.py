@@ -1,6 +1,6 @@
 import torch as tc
-from utils.checkpoint_util import maybe_load_checkpoint
-from utils.constants import ROOT_RANK
+from ppo.utils.checkpoint_util import maybe_load_checkpoint
+from ppo.utils.constants import ROOT_RANK
 
 
 @tc.no_grad()

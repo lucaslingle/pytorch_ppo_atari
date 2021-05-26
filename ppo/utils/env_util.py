@@ -1,5 +1,5 @@
-from utils.atari_wrappers import make_atari, wrap_deepmind
-from utils.monitor_util import Monitor
+from ppo.utils.atari_wrappers import make_atari, wrap_deepmind
+from ppo.utils.monitor_util import Monitor
 
 
 def get_env(args, comm, seed):

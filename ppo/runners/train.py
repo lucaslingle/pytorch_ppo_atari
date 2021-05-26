@@ -7,12 +7,12 @@ import torch as tc
 import numpy as np
 from mpi4py import MPI
 from collections import deque
-from utils.constants import ROOT_RANK
-from utils.checkpoint_util import maybe_load_checkpoint, save_checkpoint
-from utils.comm_util import sync_params, sync_grads
-from utils.stat_util import standardize, explained_variance
-from utils.dataset_util import Dataset
-from utils.print_util import print_metrics
+from ppo.utils.constants import ROOT_RANK
+from ppo.utils.checkpoint_util import maybe_load_checkpoint, save_checkpoint
+from ppo.utils.comm_util import sync_params, sync_grads
+from ppo.utils.stat_util import standardize, explained_variance
+from ppo.utils.dataset_util import Dataset
+from ppo.utils.print_util import print_metrics
 
 
 @tc.no_grad()
