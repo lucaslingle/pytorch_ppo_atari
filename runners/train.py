@@ -12,6 +12,15 @@ from utils.print_util import print_metrics
 
 @tc.no_grad()
 def _trajectory_segment_generator(env, model, timesteps_per_actorbatch):
+    """
+    Generates trajectory segments, maintaining environment state across segments,
+    and resetting the environment when episodes end.
+
+    :param env: openai gym environment or wrapper thereof.
+    :param model: agent taking observations and returning distribution and value prediction.
+    :param timesteps_per_actorbatch: integer num timesteps per actor.
+    :return: generator of batches of experience.
+    """
     t = 0
     o_t = env.reset()
 
@@ -88,6 +97,11 @@ def _trajectory_segment_generator(env, model, timesteps_per_actorbatch):
 def _add_vtarg_and_adv(seg, gamma, lam):
     """
     Compute target value using TD(lambda) estimator, and advantage with GAE(lambda)
+
+    :param seg: dictionary containing segments returned by _trajectory_segment_generator.
+    :param gamma: float discount factor gamma.
+    :param lam: float GAE decay parameter lambda.
+    :return: seg with extra keys and values for advantages and td lambda returns.
     """
     T = len(seg['actions'])
     advantages = np.zeros(T+1, 'float32')
@@ -107,6 +121,15 @@ def _add_vtarg_and_adv(seg, gamma, lam):
 
 
 def _compute_losses(model, batch, clip_param, entcoeff):
+    """
+    Compute losses for Proximal Policy Optimization (Schulman et al., 2017).
+
+    :param model: agent taking observations and returning distribution and value prediction.
+    :param batch: batch from a Dataset with fields obs, acs, logprobs, advs, vtargs.
+    :param clip_param: float clip parameter for PPO.
+    :param entcoeff: float entropy coefficient for PPO.
+    :return: dictionary of losses.
+    """
     # get relevant info from minibatch dict
     mb_obs = batch["obs"]
     mb_acs = batch["acs"]
@@ -154,8 +177,14 @@ def _compute_losses(model, batch, clip_param, entcoeff):
 
 @tc.no_grad()
 def _metric_update_closure():
-    # this is a closure encapsulating some queues and a metric update op.
+    """
+    A closure encapsulating some queues and a metric update op.
 
+    The queues are used to maintain sliding window estimates of certain metrics.
+    The metric update op updates the queues and computes metric averages across processes.
+
+    :return: the metric_update_op.
+    """
     metric_names = ['episode_lengths', 'episode_returns', 'episode_returns_unclipped']
     buffers = {
         name: deque(maxlen=100) for name in metric_names
@@ -210,6 +239,15 @@ def _metric_update_closure():
 
 
 def _train(env, agent, args):
+    """
+    Train a reinforcement learning agent by Proximal Policy Optimization.
+
+    :param env: openai gym environment or wrapper thereof.
+    :param agent: agent_util.Agent encapsulating a trainable model, an optimizer, a scheduler,
+        and the mpi4py WORLD_COMM communicator.
+    :param args: argparsed args.
+    :return:
+    """
     sync_params(model=agent.model, comm=agent.comm, root=ROOT_RANK)
     seg_generator = _trajectory_segment_generator(
         env=env, model=agent.model, timesteps_per_actorbatch=args.timesteps_per_actorbatch)
@@ -255,6 +293,17 @@ def _train(env, agent, args):
 
 
 def run(env, agent, args):
+    """
+    Train a reinforcement learning agent by Proximal Policy Optimization.
+    First tries to restore from a checkpoint on process with MPI rank zero.
+    Then runs _train. Synchronization of model params happens within _train.
+
+    :param env: openai gym environment or wrapper thereof.
+    :param agent: agent_util.Agent encapsulating a trainable model, an optimizer, a scheduler,
+        and the mpi4py WORLD_COMM communicator.
+    :param args: argparsed args.
+    :return:
+    """
     if agent.comm.Get_rank() == ROOT_RANK:
         maybe_load_checkpoint(
             checkpoint_dir=args.checkpoint_dir,
