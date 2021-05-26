@@ -1,9 +1,9 @@
+from collections import deque
+import os
+import uuid
 import torch as tc
 import numpy as np
-import os
-from collections import deque
 import matplotlib.pyplot as plt
-import uuid
 import moviepy.editor as mpy
 from utils.constants import ROOT_RANK
 from utils.checkpoint_util import maybe_load_checkpoint
@@ -14,7 +14,7 @@ def _collect_footage(env, model, max_frames):
     t = 0
     total_reward = 0.0
     o_t = env.reset()
-    while t < queue.maxlen:
+    while t < queue.maxlen:  # in general we could also make this larger than the queue
         pi_dist, vpred = model(tc.tensor(o_t).float().unsqueeze(0))
         a_t = pi_dist.sample()
         o_tp1, r_t, done_t, _ = env.step(a_t.squeeze(0).detach().numpy())

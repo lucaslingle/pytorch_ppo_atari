@@ -1,3 +1,8 @@
+"""
+Started with https://github.com/openai/baselines/blob/master/baselines/ppo1/pposgd_simple.py
+and ported it to Pytorch, removing all dependencies on baselines modules along the way.
+"""
+
 import torch as tc
 import numpy as np
 from mpi4py import MPI
