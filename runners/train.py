@@ -248,7 +248,7 @@ def _train(env, agent, args):
 
     :param env: openai gym environment or wrapper thereof.
     :param agent: agent_util.Agent encapsulating a trainable model, an optimizer, a scheduler,
-        and the mpi4py COMM_WORLD communicator object.
+        and the mpi4py communicator.
     :param args: argparsed args.
     :return:
     """
@@ -304,7 +304,7 @@ def run(env, agent, args):
 
     :param env: openai gym environment or wrapper thereof.
     :param agent: agent_util.Agent encapsulating a trainable model, an optimizer, a scheduler,
-        and the mpi4py COMM_WORLD communicator object.
+        and the mpi4py communicator.
     :param args: argparsed args.
     :return:
     """
