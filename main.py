@@ -5,6 +5,7 @@ from utils.env_util import get_env
 from utils.agent_util import get_agent
 from runners.train import Trainer
 from runners.play import Player
+from runners.record import Recorder
 
 
 def main(args):
@@ -16,7 +17,8 @@ def main(args):
 
     runners = {
         'train': Trainer(env, agent, args),
-        'play': Player(env, agent, args)
+        'play': Player(env, agent, args),
+        'record': Recorder(env, agent, args)
     }
     runner = runners[args.mode]
     runner.run()
