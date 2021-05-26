@@ -1,9 +1,6 @@
 """
-Written from scratch but loosely based on
-https://github.com/openai/baselines/blob/master/baselines/ppo1/pposgd_simple.py
-
-Essentially we ported it to Pytorch,
-and removed all dependencies on baselines modules along the way.
+Started with https://github.com/openai/baselines/blob/master/baselines/ppo1/pposgd_simple.py
+and ported it to Pytorch, removing all dependencies on baselines modules along the way.
 """
 
 import torch as tc
