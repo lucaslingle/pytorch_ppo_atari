@@ -101,7 +101,7 @@ def _add_vtarg_and_adv(seg, gamma, lam):
     :param seg: dictionary containing segments returned by _trajectory_segment_generator.
     :param gamma: float discount factor gamma.
     :param lam: float GAE decay parameter lambda.
-    :return: seg with extra keys and values for advantages and td lambda returns.
+    :return: dictionary seg with extra keys and values for advantages and td lambda returns.
     """
     T = len(seg['actions'])
     advantages = np.zeros(T+1, 'float32')
@@ -182,7 +182,7 @@ def _metric_update_closure():
     The queues are used to maintain sliding window estimates of certain metrics.
     The metric update op updates the queues and computes metric averages across processes.
 
-    :return: the metric_update_op.
+    :return: function metric_update_op.
     """
     metric_names = ['episode_lengths', 'episode_returns', 'episode_returns_unclipped']
     buffers = {
