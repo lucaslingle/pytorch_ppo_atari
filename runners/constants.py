@@ -1,1 +1,0 @@
-ROOT_RANK = 0
