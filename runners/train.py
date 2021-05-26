@@ -179,7 +179,6 @@ def _compute_losses(model, batch, clip_param, entcoeff):
 def _metric_update_closure():
     """
     A closure encapsulating some queues and a metric update op.
-
     The queues are used to maintain sliding window estimates of certain metrics.
     The metric update op updates the queues and computes metric averages across processes.
 
