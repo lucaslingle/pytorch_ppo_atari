@@ -247,8 +247,7 @@ def _train(env, agent, args):
     Train a reinforcement learning agent by Proximal Policy Optimization.
 
     :param env: openai gym environment or wrapper thereof.
-    :param agent: agent_util.Agent encapsulating a trainable model, an optimizer, a scheduler,
-        and a communicator.
+    :param agent: agent_util.Agent encapsulating model, optimizer, scheduler, communicator.
     :param args: argparsed args.
     :return:
     """
@@ -303,8 +302,7 @@ def run(env, agent, args):
     Then runs _train. Synchronization of model params happens within _train.
 
     :param env: openai gym environment or wrapper thereof.
-    :param agent: agent_util.Agent encapsulating a trainable model, an optimizer, a scheduler,
-        and a communicator.
+    :param agent: agent_util.Agent encapsulating model, optimizer, scheduler, communicator.
     :param args: argparsed args.
     :return:
     """
