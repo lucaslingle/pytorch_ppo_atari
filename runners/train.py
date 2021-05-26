@@ -1,9 +1,9 @@
 import torch as tc
 import numpy as np
 from mpi4py import MPI
-from collections import deque, Counter
+from collections import deque
 from runners.runner import Runner
-from runners.constants import ROOT_RANK
+from utils.constants import ROOT_RANK
 from utils.checkpoint_util import maybe_load_checkpoint, save_checkpoint
 from utils.comm_util import sync_params, sync_grads
 from utils.stat_util import standardize, explained_variance

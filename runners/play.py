@@ -1,7 +1,7 @@
 import torch as tc
 from runners.runner import Runner
 from utils.checkpoint_util import maybe_load_checkpoint
-from runners.constants import ROOT_RANK
+from utils.constants import ROOT_RANK
 
 
 class Player(Runner):
