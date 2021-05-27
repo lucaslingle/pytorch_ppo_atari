@@ -17,14 +17,15 @@ def parse_name(filename):
 
 
 def latest_step(base_path):
-    latest_1 = latest_n_checkpoints(base_path, n=1)[0]
+    latest_1 = sorted(os.listdir(base_path), key=lambda x: parse_name(x)['steps'])[0]
     latest_step = parse_name(latest_1)['step']
     return latest_step
 
 
-def latest_n_checkpoints(base_path, n=5):
-    sort = sorted(os.listdir(base_path), key=lambda x: parse_name(x)['steps'])
-    latest_n = sort[-n:]
+def latest_n_checkpoint_steps(base_path, n=5):
+    steps = set(map(lambda x: parse_name(x)['steps'], os.listdir(base_path)))
+    latest_steps = sorted(steps)
+    latest_n = latest_steps[-n:]
     return latest_n
 
 
@@ -43,9 +44,9 @@ def save_checkpoint(checkpoint_dir, model_name, agent, steps):
     os.makedirs(base_path, exist_ok=True)
 
     # keep only last n checkpoints
-    latest_n = latest_n_checkpoints(base_path, n=5)
+    latest_n = latest_n_checkpoint_steps(base_path, n=5)
     for file in os.listdir(base_path):
-        if file not in latest_n:
+        if parse_name(file)['steps'] not in latest_n_checkpoint_steps:
             os.remove(os.path.join(base_path, file))
 
     # save everything
