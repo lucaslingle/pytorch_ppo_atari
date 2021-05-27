@@ -34,5 +34,3 @@ def sync_state(agent, comm, root):
     agent.model.load_state_dict(model_state_dict)
     agent.optimizer.load_state_dict(optimizer_state_dict)
     agent.scheduler.load_state_dict(scheduler_state_dict)
-
-
