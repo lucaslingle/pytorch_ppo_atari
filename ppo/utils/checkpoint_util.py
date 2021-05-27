@@ -60,7 +60,7 @@ def save_checkpoint(checkpoint_dir, model_name, agent, steps):
 
 def maybe_load_checkpoint(checkpoint_dir, model_name, agent, steps=None):
     """
-    Tries to load a checkpoint from the checkpoint dir in the model_name subdirectory.
+    Tries to load a checkpoint from checkpoint_dir/model_name/.
     If there isn't one, it fails gracefully, allowing the script to proceed
     from a newly initialized model.
 
