@@ -9,7 +9,7 @@ from mpi4py import MPI
 from collections import deque
 from ppo.utils.constants import ROOT_RANK
 from ppo.utils.checkpoint_util import maybe_load_checkpoint, save_checkpoint
-from ppo.utils.comm_util import sync_params, sync_grads
+from ppo.utils.comm_util import sync_state, sync_grads
 from ppo.utils.stat_util import standardize, explained_variance
 from ppo.utils.dataset_util import Dataset
 from ppo.utils.print_util import print_metrics
@@ -256,7 +256,7 @@ def _metric_update_closure():
     return metric_update_op
 
 
-def _train(env, agent, args):
+def _train(env, agent, args, env_steps_so_far=0):
     """
     Train a reinforcement learning agent by Proximal Policy Optimization.
 
@@ -265,12 +265,10 @@ def _train(env, agent, args):
     :param args: argparsed args.
     :return:
     """
-    sync_params(model=agent.model, comm=agent.comm, root=ROOT_RANK)
     seg_generator = _trajectory_segment_generator(
         env=env, model=agent.model, timesteps_per_actorbatch=args.timesteps_per_actorbatch)
     metric_update_op = _metric_update_closure()
 
-    env_steps_so_far = 0
     iterations_thus_far = 0
     while env_steps_so_far < args.env_steps:
         seg = next(seg_generator)
@@ -310,24 +308,29 @@ def _train(env, agent, args):
                 save_checkpoint(
                     checkpoint_dir=args.checkpoint_dir,
                     model_name=args.model_name,
-                    agent=agent)
+                    agent=agent,
+                    steps=env_steps_so_far)
 
 
 def run(env, agent, args):
     """
     Train a reinforcement learning agent by Proximal Policy Optimization.
-    First tries to restore from a checkpoint on process with MPI rank zero.
-    Then runs _train. Synchronization of model params happens within _train.
+    On process with MPI rank zero, tries to restore from latest checkpoint.
+    Synchronization of model/opt/sched state follows.
+    Then runs _train.
 
     :param env: openai gym environment or wrapper thereof.
     :param agent: agent_util.Agent encapsulating model, optimizer, scheduler, comm.
     :param args: argparsed args.
     :return:
     """
+    env_steps_so_far = 0
     if agent.comm.Get_rank() == ROOT_RANK:
-        maybe_load_checkpoint(
+        env_steps_so_far = maybe_load_checkpoint(
             checkpoint_dir=args.checkpoint_dir,
             model_name=args.model_name,
             agent=agent)
 
-    _train(env=env, agent=agent, args=args)
+    env_steps_so_far = agent.comm.bcast(env_steps_so_far, root=ROOT_RANK)
+    sync_state(agent=agent, comm=agent.comm, root=ROOT_RANK)
+    _train(env=env, agent=agent, args=args, env_steps_so_far=env_steps_so_far)
