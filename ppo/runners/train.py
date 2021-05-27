@@ -134,8 +134,8 @@ def _clip_anneal(clip_param, env_steps_so_far, max_env_steps):
     :param max_env_steps: int max environment steps
     :return: float annealed ppo clip param
     """
-    frac_done = 1.0 - (env_steps_so_far / max_env_steps)
-    clip_param_annealed = frac_done * clip_param
+    frac_done = (env_steps_so_far / max_env_steps)
+    clip_param_annealed = (1.0 - frac_done) * clip_param
     return clip_param_annealed
 
 
