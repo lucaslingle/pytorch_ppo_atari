@@ -43,12 +43,6 @@ def save_checkpoint(checkpoint_dir, model_name, agent, steps):
     base_path = os.path.join(checkpoint_dir, model_name)
     os.makedirs(base_path, exist_ok=True)
 
-    # keep only last n checkpoints
-    latest_n_steps = latest_n_checkpoint_steps(base_path, n=5)
-    for file in os.listdir(base_path):
-        if parse_name(file)['steps'] not in latest_n_steps:
-            os.remove(os.path.join(base_path, file))
-
     # save everything
     tc.save(agent.model.state_dict(),
             os.path.join(base_path, format_name('model', steps)))
@@ -56,6 +50,12 @@ def save_checkpoint(checkpoint_dir, model_name, agent, steps):
             os.path.join(base_path, format_name('optimizer', steps)))
     tc.save(agent.scheduler.state_dict(),
             os.path.join(base_path, format_name('scheduler', steps)))
+
+    # keep only last n checkpoints
+    latest_n_steps = latest_n_checkpoint_steps(base_path, n=5)
+    for file in os.listdir(base_path):
+        if parse_name(file)['steps'] not in latest_n_steps:
+            os.remove(os.path.join(base_path, file))
 
 
 def maybe_load_checkpoint(checkpoint_dir, model_name, agent, steps=None):
