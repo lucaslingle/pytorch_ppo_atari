@@ -9,14 +9,6 @@ def get_comm():
 
 
 @tc.no_grad()
-def sync_params(model, comm, root):
-    for p in model.parameters():
-        p_data = p.data.numpy()
-        comm.Bcast(p_data, root=root)
-        p.copy_(tc.FloatTensor(p_data))
-
-
-@tc.no_grad()
 def sync_grads(model, comm):
     for p in model.parameters():
         p_grad_local = p.grad.numpy()
