@@ -44,9 +44,9 @@ def save_checkpoint(checkpoint_dir, model_name, agent, steps):
     os.makedirs(base_path, exist_ok=True)
 
     # keep only last n checkpoints
-    latest_n = latest_n_checkpoint_steps(base_path, n=5)
+    latest_n_steps = latest_n_checkpoint_steps(base_path, n=5)
     for file in os.listdir(base_path):
-        if parse_name(file)['steps'] not in latest_n_checkpoint_steps:
+        if parse_name(file)['steps'] not in latest_n_steps:
             os.remove(os.path.join(base_path, file))
 
     # save everything
