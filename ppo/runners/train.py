@@ -125,6 +125,20 @@ def _add_vtarg_and_adv(seg, gamma, lam):
     return seg
 
 
+def _clip_anneal(clip_param, env_steps_so_far, max_env_steps):
+    """
+    Anneals PPO clip param to zero over the course of training.
+
+    :param clip_param: float ppo clip param
+    :param env_steps_so_far: int environment steps so far
+    :param max_env_steps: int max environment steps
+    :return: float annealed ppo clip param
+    """
+    frac_done = 1.0 - (env_steps_so_far / max_env_steps)
+    clip_param_annealed = frac_done * clip_param
+    return clip_param_annealed
+
+
 def _compute_losses(model, batch, clip_param, entcoeff):
     """
     Compute losses for Proximal Policy Optimization (Schulman et al., 2017).
@@ -269,11 +283,15 @@ def _train(env, agent, args):
             'vtargs': seg['td_lambda_returns'],
             'advs': seg['advantage_estimates']
         })
+        clip_param_annealed = _clip_anneal(
+            args.ppo_epsilon, env_steps_so_far, args.env_steps)
         for _ in range(args.optim_epochs):
             for batch in dataset.iterate_once(batch_size=args.optim_batchsize):
                 agent.optimizer.zero_grad()
                 losses = _compute_losses(
-                    model=agent.model, batch=batch, clip_param=args.ppo_epsilon,
+                    model=agent.model,
+                    batch=batch,
+                    clip_param=clip_param_annealed,
                     entcoeff=args.entropy_coef)
                 losses['total_loss'].backward()
                 sync_grads(model=agent.model, comm=agent.comm)
