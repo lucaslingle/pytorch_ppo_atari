@@ -88,10 +88,11 @@ def _trajectory_segment_generator(env, model, timesteps_per_actorbatch):
         if done_t:
             episode_lengths.append(current_episode_length)
             episode_returns.append(current_episode_return)
-            episode_returns_unclipped.append(current_episode_return_unclipped)
             current_episode_length = 0
             current_episode_return = 0.0
-            current_episode_return_unclipped = 0.0
+            if info_t['ale.lives'] == 0:
+                episode_returns_unclipped.append(current_episode_return_unclipped)
+                current_episode_return_unclipped = 0.0
             o_tp1 = env.reset()
 
         t += 1
