@@ -75,7 +75,8 @@ These processes will play the OpenAI gym environment 'PongNoFrameskip-v4' in par
 and communicate gradient information and synchronize parameters using [OpenMPI](https://www.open-mpi.org/).
 
 To see additional options, you can simply type ```python main.py --help```. In particular, 
-you can pick any other Atari 2600 game supported by OpenAI gym, and this implementation will support it. 
+you can pick any other Atari 2600 game supported by OpenAI [gym](https://github.com/openai/gym), 
+and this implementation will support it. 
 
 ### Checkpoints
 By default, checkpoints are saved to ```./checkpoints/model-ppo1-defaults```. To pick a different checkpoint directory, 
