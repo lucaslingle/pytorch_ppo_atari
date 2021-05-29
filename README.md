@@ -17,7 +17,7 @@ and taking a single step, PPO takes inspiration from an approximate natural poli
 
 [TRPO](https://arxiv.org/abs/1502.05477) is an example of an information-geometric trust region method, 
 which aims to improve the policy by taking steps of a constant maximum size on the manifold of possible policies.
-The step-size utilized in TRPO is the state-averaged KL divergence under the current policy; taking steps 
+The stepsize utilized in TRPO is the state-averaged KL divergence under the current policy; taking steps 
 under TRPO amounts to solving a constrained optimization problem to ensure the step size is at most a certain amount. 
 This is done using conjugate gradient descent to compute the (approximate) natural gradient, followed by a line search 
 to ensure the step taken in parameter space leads to a policy whose state-averaged KL divergence to the previous policy 
@@ -70,15 +70,17 @@ To run the default settings, you can simply type:
 mpirun -np 8 python -m main --env_name=PongNoFrameskip-v4
 ```
 
-This will launch 8 parallel processes, each running the ```main.py``` script. These processes will play the OpenAI gym environment 'PongNoFrameskip-v4' in parallel, 
+This will launch 8 parallel processes, each running the ```main.py``` script. 
+These processes will play the OpenAI gym environment 'PongNoFrameskip-v4' in parallel, 
 and communicate gradient information and synchronize parameters using [OpenMPI](https://www.open-mpi.org/).
 
-To see additional options, you can simply type ```python main.py --help```. In particular, you can pick any other Atari 2600 game supported by OpenAI gym, 
-and this implementation will support it. 
+To see additional options, you can simply type ```python main.py --help```. In particular, 
+you can pick any other Atari 2600 game supported by OpenAI gym, and this implementation will support it. 
 
 ### Checkpoints
 By default, checkpoints are saved to ```./checkpoints/model-ppo1-defaults```. To pick a different checkpoint directory, 
-you can set the ```--checkpoint_dir``` flag, and to pick a different checkpoint name, you can set the ```--model_name``` flag.
+you can set the ```--checkpoint_dir``` flag, and to pick a different checkpoint name, you can set the 
+```--model_name``` flag.
 
 ### Play
 To watch the trained agent play a game, you can run
@@ -96,12 +98,14 @@ Be sure to use the correct env_name, and to pass in the appropriate checkpoint_d
 By default, videos are saved to the directory 'assets'. To specify a custom directory, you can set the 
 ```--asset_dir``` flag.
 
-### Notes
+## Notes
 This project started out as a Pytorch port of OpenAI baselines ppo1, and the legacy repo for that port is 
 available [here](https://github.com/lucaslingle/ppo1). Since then, we have rewritten the entire implementation 
 from scratch, and simplified it by removing all dependencies on OpenAI baselines' code.
 
-In the future, we would like to implement training pipelines for other RL algorithms such as DQN and PER, 
-and to add support for recurrent policies like LSTMs, SNAILs and Transformers. These recurrent architectures may also  
-benefit from special environments in order to provide a value-add, so we have deferred such an implementation 
-to future projects.
+In the future, we would like to implement training pipelines for other RL algorithms such as 
+[Deep Q-Learning](https://storage.googleapis.com/deepmind-media/dqn/DQNNaturePaper.pdf) 
+and [Prioritized Experience Replay](https://arxiv.org/abs/1511.05952).
+We would also to add support for recurrent policies like LSTMs, SNAILs and Transformers. 
+Some of these recurrent architectures may also require special environments in order to provide a value-add, 
+so we have deferred such an implementation to the future. 
