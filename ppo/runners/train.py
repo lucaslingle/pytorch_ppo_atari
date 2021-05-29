@@ -27,7 +27,7 @@ def _trajectory_segment_generator(
         env: Union[gym.Wrapper, gym.Env],
         model: AgentModel,
         timesteps_per_actorbatch: int
-    ) -> Generator[str, Tuple[MutableExperienceTrajectory, TrajectoryMetrics]]:
+    ) -> Generator[Tuple[MutableExperienceTrajectory, TrajectoryMetrics]]:
     """
     Generates trajectory segments, maintaining environment state across segments,
     and resetting the environment when episodes end.
