@@ -100,8 +100,8 @@ By default, videos are saved to the directory 'assets'. To specify a custom dire
 
 ## Notes
 This project started out as a Pytorch port of OpenAI baselines ppo1, and the legacy repo for that port is 
-available [here](https://github.com/lucaslingle/ppo1). Since then, we have rewritten the entire implementation 
-from scratch, and simplified it by removing all dependencies on OpenAI baselines' code.
+available [here](https://github.com/lucaslingle/ppo1). Since then, we have rewritten the implementation 
+from scratch, and simplified it by removing the dependencies on baselines entirely.
 
 In the future, we would like to implement training pipelines for other RL algorithms such as 
 [Deep Q-Learning](https://storage.googleapis.com/deepmind-media/dqn/DQNNaturePaper.pdf) 
