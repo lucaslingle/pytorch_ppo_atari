@@ -53,17 +53,21 @@ def _make_video(queue, base_path, fps, max_frames):
 
 def run(env, agent, args):
     if agent.comm.Get_rank() == ROOT_RANK:
-        maybe_load_checkpoint(
-            checkpoint_dir=args.checkpoint_dir,
-            model_name=args.model_name,
-            agent=agent)
+        maybe_load_checkpoint(checkpoint_dir=args.checkpoint_dir,
+                              model_name=args.model_name,
+                              agent=agent)
 
         base_path = os.path.join(args.asset_dir, args.model_name)
         os.makedirs(base_path, exist_ok=True)
 
         max_frames = 2048
         fps = 64
-        queue = _collect_footage(env=env, model=agent.model, max_frames=max_frames)
-        fp = _make_video(queue=queue, base_path=base_path, fps=fps, max_frames=max_frames)
+        queue = _collect_footage(env=env,
+                                 model=agent.model,
+                                 max_frames=max_frames)
+        fp = _make_video(queue=queue,
+                         base_path=base_path,
+                         fps=fps,
+                         max_frames=max_frames)
 
         print(f"Saved video to {fp}")

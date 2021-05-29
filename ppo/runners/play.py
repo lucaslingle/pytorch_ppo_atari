@@ -24,9 +24,8 @@ def _play(env, agent, env_steps):
 
 def run(env, agent, args):
     if agent.comm.Get_rank() == ROOT_RANK:
-        maybe_load_checkpoint(
-            checkpoint_dir=args.checkpoint_dir,
-            model_name=args.model_name,
-            agent=agent)
+        maybe_load_checkpoint(checkpoint_dir=args.checkpoint_dir,
+                              model_name=args.model_name,
+                              agent=agent)
 
         _play(env=env, agent=agent, env_steps=args.env_steps)

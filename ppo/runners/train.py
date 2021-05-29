@@ -29,13 +29,13 @@ def _trajectory_segment_generator(env, model, timesteps_per_actorbatch):
     t = 0
     o_t = env.reset()
 
-    episode_lengths = []
-    episode_returns = []
-    episode_returns_unclipped = []
+    ep_lengths = []
+    ep_returns = []
+    ep_returns_unclipped = []
 
-    current_episode_length = 0
-    current_episode_return = 0.0
-    current_episode_return_unclipped = 0.0
+    curr_ep_length = 0
+    curr_ep_return = 0.0
+    curr_ep_return_unclipped = 0.0
 
     observations = np.array([o_t for _ in range(timesteps_per_actorbatch)])
     logprobs = np.zeros(timesteps_per_actorbatch, 'float32')
@@ -55,21 +55,21 @@ def _trajectory_segment_generator(env, model, timesteps_per_actorbatch):
         vpred_t = vpred_t.squeeze(0).detach().numpy()
 
         if t > 0 and t % timesteps_per_actorbatch == 0:
-            value_estimates[-1] = vpred_t
+            value_estimates[-1] = vpred_t   # length is timesteps_per_actorbatch+1 for GAE.
             yield {
                 "observations": observations,
                 "logprobs": logprobs,
                 "actions": actions,
                 "rewards": rewards,
                 "dones": dones,
-                "value_estimates": value_estimates,  # length is timesteps_per_actorbatch+1 for GAE.
-                "episode_lengths": episode_lengths,
-                "episode_returns": episode_returns,
-                "episode_returns_unclipped": episode_returns_unclipped
+                "value_estimates": value_estimates,
+                "ep_lengths": ep_lengths,
+                "ep_returns": ep_returns,
+                "ep_returns_unclipped": ep_returns_unclipped
             }
-            episode_lengths = []
-            episode_returns = []
-            episode_returns_unclipped = []
+            ep_lengths = []
+            ep_returns = []
+            ep_returns_unclipped = []
 
         o_tp1, r_t, done_t, info_t = env.step(a_t)
 
@@ -81,18 +81,18 @@ def _trajectory_segment_generator(env, model, timesteps_per_actorbatch):
         dones[i] = done_t
         value_estimates[i] = vpred_t
 
-        current_episode_length += 1
-        current_episode_return += r_t
-        current_episode_return_unclipped += info_t['monitored_reward']
+        curr_ep_length += 1
+        curr_ep_return += r_t
+        curr_ep_return_unclipped += info_t['monitored_reward']
 
         if done_t:
-            episode_lengths.append(current_episode_length)
-            episode_returns.append(current_episode_return)
-            current_episode_length = 0
-            current_episode_return = 0.0
+            ep_lengths.append(curr_ep_length)
+            ep_returns.append(curr_ep_return)
+            curr_ep_length = 0
+            curr_ep_return = 0.0
             if info_t['ale.lives'] == 0:
-                episode_returns_unclipped.append(current_episode_return_unclipped)
-                current_episode_return_unclipped = 0.0
+                ep_returns_unclipped.append(curr_ep_return_unclipped)
+                curr_ep_return_unclipped = 0.0
             o_tp1 = env.reset()
 
         t += 1
@@ -204,14 +204,24 @@ def _metric_update_closure():
 
     :return: function metric_update_op.
     """
-    metric_names = ['episode_lengths', 'episode_returns', 'episode_returns_unclipped']
+
+    # we use queues for rolling mean of the following metrics:
+    metric_names = [
+        'ep_lengths',
+        'ep_returns',
+        'ep_returns_unclipped'
+    ]
     buffers = {
         name: deque(maxlen=100) for name in metric_names
     }
 
     def metric_update_op(
-            seg, dataset, args, agent,
-            iterations_thus_far, env_steps_so_far
+        seg,
+        dataset,
+        args,
+        agent,
+        iterations_thus_far,
+        env_steps_so_far
     ):
 
         metrics = dict()
@@ -223,9 +233,9 @@ def _metric_update_closure():
             metric_locals = seg[name]
             metric_globals = agent.comm.allgather(metric_locals)
             metric_globals_flat = [x for loc in metric_globals for x in loc]
-            buffers[name].extend(metric_globals_flat)  # we use buffers for rolling mean
-            metric_value_mean = np.mean(buffers[name])
-            metrics['mean_' + name] = metric_value_mean
+            buffers[name].extend(metric_globals_flat)
+            metric_global_mean = np.mean(buffers[name])
+            metrics['mean_'+name] = metric_global_mean
 
         metrics['ev_tdlam_before'] = explained_variance(
             ypred=seg['value_estimates'], y=seg['td_lambda_returns'])
@@ -234,23 +244,24 @@ def _metric_update_closure():
         losses = dict()
         n_batches = 0
         for batch in dataset.iterate_once(batch_size=args.optim_batchsize):
-            batch_losses = _compute_losses(
-                model=agent.model, batch=batch, clip_param=args.ppo_epsilon,
-                entcoeff=args.entropy_coef)
+            batch_losses = _compute_losses(model=agent.model,
+                                           batch=batch,
+                                           clip_param=args.ppo_epsilon,
+                                           entcoeff=args.entropy_coef)
             n_batches += 1
-            batch_losses = dict(list(
-                map(lambda kv: (kv[0], kv[1].detach().numpy()), batch_losses.items())
-            ))
+            batch_losses = dict(
+                list(map(lambda kv: (kv[0], kv[1].detach().numpy()), batch_losses.items()))
+            )
             for name in batch_losses:
                 if name not in losses:
                     losses[name] = 0.0
                 losses[name] += batch_losses[name]
 
         for name in losses:
-            loss_value_local_mean = losses[name] / n_batches
-            loss_value_global_sum = agent.comm.allreduce(loss_value_local_mean, op=MPI.SUM)
-            loss_value_global_mean = loss_value_global_sum / agent.comm.Get_size()
-            metrics['loss_' + name] = loss_value_global_mean
+            loss_local_mean = losses[name] / n_batches
+            loss_global_sum = agent.comm.allreduce(loss_local_mean, op=MPI.SUM)
+            loss_global_mean = loss_global_sum / agent.comm.Get_size()
+            metrics['loss_'+name] = loss_global_mean
 
         return metrics
 
@@ -287,11 +298,10 @@ def _train(env, agent, args, env_steps_so_far=0):
         for _ in range(args.optim_epochs):
             for batch in dataset.iterate_once(batch_size=args.optim_batchsize):
                 agent.optimizer.zero_grad()
-                losses = _compute_losses(
-                    model=agent.model,
-                    batch=batch,
-                    clip_param=clip_param_annealed,
-                    entcoeff=args.entropy_coef)
+                losses = _compute_losses(model=agent.model,
+                                         batch=batch,
+                                         clip_param=clip_param_annealed,
+                                         entcoeff=args.entropy_coef)
                 losses['total_loss'].backward()
                 sync_grads(model=agent.model, comm=agent.comm)
                 agent.optimizer.step()
@@ -306,11 +316,10 @@ def _train(env, agent, args, env_steps_so_far=0):
         if agent.comm.Get_rank() == ROOT_RANK:
             print_metrics(metrics)
             if iterations_thus_far % args.checkpoint_interval == 0:
-                save_checkpoint(
-                    checkpoint_dir=args.checkpoint_dir,
-                    model_name=args.model_name,
-                    agent=agent,
-                    steps=env_steps_so_far)
+                save_checkpoint(checkpoint_dir=args.checkpoint_dir,
+                                model_name=args.model_name,
+                                agent=agent,
+                                steps=env_steps_so_far)
 
 
 def run(env, agent, args):

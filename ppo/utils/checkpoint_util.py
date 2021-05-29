@@ -16,17 +16,15 @@ def parse_name(filename):
     }
 
 
-def latest_step(base_path):
-    latest_1 = sorted(os.listdir(base_path), key=lambda x: parse_name(x)['steps'])[-1]
-    latest_step = parse_name(latest_1)['steps']
-    return latest_step
-
-
 def latest_n_checkpoint_steps(base_path, n=5):
     steps = set(map(lambda x: parse_name(x)['steps'], os.listdir(base_path)))
     latest_steps = sorted(steps)
     latest_n = latest_steps[-n:]
     return latest_n
+
+
+def latest_step(base_path):
+    return latest_n_checkpoint_steps(base_path, n=1)[-1]
 
 
 def save_checkpoint(checkpoint_dir, model_name, agent, steps):
