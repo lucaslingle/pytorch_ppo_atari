@@ -3,7 +3,7 @@ Started with https://github.com/openai/baselines/blob/master/baselines/ppo1/ppos
 and ported it to Pytorch, removing all dependencies on baselines modules along the way.
 """
 
-from typing import Union, Generator, Dict
+from typing import Union, Generator, Dict, Tuple
 from argparse import Namespace
 import gym
 import torch as tc
@@ -27,7 +27,7 @@ def _trajectory_segment_generator(
         env: Union[gym.Wrapper, gym.Env],
         model: AgentModel,
         timesteps_per_actorbatch: int
-    ) -> Generator[Dict[str, Union[MutableExperienceTrajectory, TrajectoryMetrics]]]:
+    ) -> Generator[str, Tuple[MutableExperienceTrajectory, TrajectoryMetrics]]:
     """
     Generates trajectory segments, maintaining environment state across segments,
     and resetting the environment when episodes end.
@@ -58,10 +58,7 @@ def _trajectory_segment_generator(
 
         if t > 0 and t % timesteps_per_actorbatch == 0:
             seg.value_estimates[-1] = vpred_t  # for GAE
-            yield {
-                "trajectory": seg,
-                "metrics": met
-            }
+            yield seg, met
             met.episode_lengths = []
             met.episode_returns = []
             met.episode_returns_unclipped = []
