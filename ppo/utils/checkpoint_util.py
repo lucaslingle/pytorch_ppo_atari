@@ -2,12 +2,12 @@ import torch as tc
 import os
 
 
-def format_name(kind, steps):
+def _format_name(kind, steps):
     filename = f"{kind}_{steps}.pth"
     return filename
 
 
-def parse_name(filename):
+def _parse_name(filename):
     kind, steps = filename.split(".")[0].split("_")
     steps = int(steps)
     return {
@@ -16,15 +16,15 @@ def parse_name(filename):
     }
 
 
-def latest_n_checkpoint_steps(base_path, n=5):
-    steps = set(map(lambda x: parse_name(x)['steps'], os.listdir(base_path)))
+def _latest_n_checkpoint_steps(base_path, n=5):
+    steps = set(map(lambda x: _parse_name(x)['steps'], os.listdir(base_path)))
     latest_steps = sorted(steps)
     latest_n = latest_steps[-n:]
     return latest_n
 
 
-def latest_step(base_path):
-    return latest_n_checkpoint_steps(base_path, n=1)[-1]
+def _latest_step(base_path):
+    return _latest_n_checkpoint_steps(base_path, n=1)[-1]
 
 
 def save_checkpoint(checkpoint_dir, model_name, agent, steps):
@@ -43,16 +43,16 @@ def save_checkpoint(checkpoint_dir, model_name, agent, steps):
 
     # save everything
     tc.save(agent.model.state_dict(),
-            os.path.join(base_path, format_name('model', steps)))
+            os.path.join(base_path, _format_name('model', steps)))
     tc.save(agent.optimizer.state_dict(),
-            os.path.join(base_path, format_name('optimizer', steps)))
+            os.path.join(base_path, _format_name('optimizer', steps)))
     tc.save(agent.scheduler.state_dict(),
-            os.path.join(base_path, format_name('scheduler', steps)))
+            os.path.join(base_path, _format_name('scheduler', steps)))
 
     # keep only last n checkpoints
-    latest_n_steps = latest_n_checkpoint_steps(base_path, n=5)
+    latest_n_steps = _latest_n_checkpoint_steps(base_path, n=5)
     for file in os.listdir(base_path):
-        if parse_name(file)['steps'] not in latest_n_steps:
+        if _parse_name(file)['steps'] not in latest_n_steps:
             os.remove(os.path.join(base_path, file))
 
 
@@ -71,14 +71,14 @@ def maybe_load_checkpoint(checkpoint_dir, model_name, agent, steps=None):
     base_path = os.path.join(checkpoint_dir, model_name)
     try:
         if steps is None:
-            steps = latest_step(base_path)
+            steps = _latest_step(base_path)
 
         agent.model.load_state_dict(
-            tc.load(os.path.join(base_path, format_name('model', steps))))
+            tc.load(os.path.join(base_path, _format_name('model', steps))))
         agent.optimizer.load_state_dict(
-            tc.load(os.path.join(base_path, format_name('optimizer', steps))))
+            tc.load(os.path.join(base_path, _format_name('optimizer', steps))))
         agent.scheduler.load_state_dict(
-            tc.load(os.path.join(base_path, format_name('scheduler', steps))))
+            tc.load(os.path.join(base_path, _format_name('scheduler', steps))))
 
         print(f"Successfully loaded checkpoint from {base_path}, with step {steps}.")
     except Exception:
