@@ -3,20 +3,31 @@ Started with https://github.com/openai/baselines/blob/master/baselines/ppo1/ppos
 and ported it to Pytorch, removing all dependencies on baselines modules along the way.
 """
 
+from typing import Union, Generator, Dict
+from argparse import Namespace
+import gym
 import torch as tc
 import numpy as np
 from mpi4py import MPI
 from collections import deque
+from collections.abc import Callable
 from ppo.utils.constants import ROOT_RANK
 from ppo.utils.checkpoint_util import maybe_load_checkpoint, save_checkpoint
 from ppo.utils.comm_util import sync_state, sync_grads
 from ppo.utils.stat_util import standardize, explained_variance
 from ppo.utils.dataset_util import Dataset
 from ppo.utils.print_util import print_metrics
+from ppo.utils.experience_util import MutableExperienceTrajectory, TrajectoryMetrics
+from ppo.agents.abstract import AgentModel
+from ppo.utils.agent_util import Agent
 
 
 @tc.no_grad()
-def _trajectory_segment_generator(env, model, timesteps_per_actorbatch):
+def _trajectory_segment_generator(
+        env: Union[gym.Wrapper, gym.Env],
+        model: AgentModel,
+        timesteps_per_actorbatch: int
+    ) -> Generator[Dict[str, Union[MutableExperienceTrajectory, TrajectoryMetrics]]]:
     """
     Generates trajectory segments, maintaining environment state across segments,
     and resetting the environment when episodes end.
@@ -29,20 +40,11 @@ def _trajectory_segment_generator(env, model, timesteps_per_actorbatch):
     t = 0
     o_t = env.reset()
 
-    ep_lengths = []
-    ep_returns = []
-    ep_returns_unclipped = []
+    seg = MutableExperienceTrajectory(
+        horizon=timesteps_per_actorbatch,
+        obs_shape=o_t.shape)
 
-    curr_ep_length = 0
-    curr_ep_return = 0.0
-    curr_ep_return_unclipped = 0.0
-
-    observations = np.array([o_t for _ in range(timesteps_per_actorbatch)])
-    logprobs = np.zeros(timesteps_per_actorbatch, 'float32')
-    actions = np.zeros(timesteps_per_actorbatch, 'int64')
-    rewards = np.zeros(timesteps_per_actorbatch, 'float32')
-    dones = np.zeros(timesteps_per_actorbatch, 'float32')
-    value_estimates = np.zeros(timesteps_per_actorbatch+1, 'float32')
+    met = TrajectoryMetrics()
 
     model.eval()
     while True:
@@ -55,44 +57,40 @@ def _trajectory_segment_generator(env, model, timesteps_per_actorbatch):
         vpred_t = vpred_t.squeeze(0).detach().numpy()
 
         if t > 0 and t % timesteps_per_actorbatch == 0:
-            value_estimates[-1] = vpred_t   # length is timesteps_per_actorbatch+1 for GAE.
+            seg.value_estimates[-1] = vpred_t  # for GAE
             yield {
-                "observations": observations,
-                "logprobs": logprobs,
-                "actions": actions,
-                "rewards": rewards,
-                "dones": dones,
-                "value_estimates": value_estimates,
-                "ep_lengths": ep_lengths,
-                "ep_returns": ep_returns,
-                "ep_returns_unclipped": ep_returns_unclipped
+                "trajectory": seg,
+                "metrics": met
             }
-            ep_lengths = []
-            ep_returns = []
-            ep_returns_unclipped = []
+            met.episode_lengths = []
+            met.episode_returns = []
+            met.episode_returns_unclipped = []
 
         o_tp1, r_t, done_t, info_t = env.step(a_t)
 
         i = t % timesteps_per_actorbatch
-        observations[i] = o_t
-        logprobs[i] = logprob_a_t
-        actions[i] = a_t
-        rewards[i] = r_t
-        dones[i] = done_t
-        value_estimates[i] = vpred_t
+        seg.observations[i] = o_t
+        seg.logprobs[i] = logprob_a_t
+        seg.actions[i] = a_t
+        seg.rewards[i] = r_t
+        seg.dones[i] = float(done_t)
+        seg.value_estimates[i] = vpred_t
 
-        curr_ep_length += 1
-        curr_ep_return += r_t
-        curr_ep_return_unclipped += info_t['monitored_reward']
+        met.current_episode_length += 1
+        met.current_episode_return += r_t
+        met.current_episode_return_unclipped += info_t['monitored_reward']
 
         if done_t:
-            ep_lengths.append(curr_ep_length)
-            ep_returns.append(curr_ep_return)
-            curr_ep_length = 0
-            curr_ep_return = 0.0
+            met.episode_lengths.append(met.current_episode_length)
+            met.episode_returns.append(met.current_episode_return)
+            met.current_episode_length = 0
+            met.current_episode_return = 0.0
+
             if info_t['ale.lives'] == 0:
-                ep_returns_unclipped.append(curr_ep_return_unclipped)
-                curr_ep_return_unclipped = 0.0
+                met.episode_returns_unclipped.append(
+                    met.current_episode_return_unclipped)
+                met.current_episode_return_unclipped = 0.0
+
             o_tp1 = env.reset()
 
         t += 1
@@ -100,7 +98,11 @@ def _trajectory_segment_generator(env, model, timesteps_per_actorbatch):
 
 
 @tc.no_grad()
-def _add_vtarg_and_adv(seg, gamma, lam):
+def _add_vtarg_and_adv(
+        seg: MutableExperienceTrajectory,
+        gamma: float,
+        lam: float
+    ) -> MutableExperienceTrajectory:
     """
     Compute target value using TD(lambda) estimator, and advantage with GAE(lambda)
 
@@ -109,24 +111,27 @@ def _add_vtarg_and_adv(seg, gamma, lam):
     :param lam: float GAE decay parameter lambda.
     :return: dictionary seg with extra keys and values for advantages and td lambda returns.
     """
-    T = len(seg['actions'])
-    advantages = np.zeros(T+1, 'float32')
+    T = len(seg.actions)
     for t in reversed(range(1, T+1)):  # T, ..., 1.
-        done_t = seg['dones'][t-1]
-        r_t = seg['rewards'][t-1]
-        V_t = seg['value_estimates'][t-1]
-        V_tp1 = seg['value_estimates'][t]
+        done_t = seg.dones[t-1]
+        r_t = seg.rewards[t-1]
+        V_t = seg.value_estimates[t-1]
+        V_tp1 = seg.value_estimates[t]
+        A_tp1 = seg.advantage_estimates[t] if t != T else 0.0
 
-        delta_t = -V_t + r_t + gamma * (1.-float(done_t)) * V_tp1
-        advantages[t-1] = delta_t + gamma * lam * (1.-float(done_t)) * advantages[t]
+        delta_t = -V_t + r_t + gamma * (1.-done_t) * V_tp1
+        A_t = delta_t + gamma * lam * (1.-done_t) * A_tp1
+        seg.advantage_estimates[t-1] = A_t
 
-    seg["advantage_estimates"] = advantages[0:-1]
-    seg["value_estimates"] = seg["value_estimates"][0:-1]
-    seg["td_lambda_returns"] = seg["advantage_estimates"] + seg["value_estimates"]
+    seg.td_lambda_returns[:] = seg.value_estimates[0:-1] + seg.advantage_estimates
     return seg
 
 
-def _clip_anneal(clip_param, env_steps_so_far, max_env_steps):
+def _clip_anneal(
+        clip_param: float,
+        env_steps_so_far: int,
+        max_env_steps: int
+    ) -> float:
     """
     Anneals PPO clip param to zero over the course of training.
 
@@ -140,7 +145,12 @@ def _clip_anneal(clip_param, env_steps_so_far, max_env_steps):
     return clip_param_annealed
 
 
-def _compute_losses(model, batch, clip_param, entcoeff):
+def _compute_losses(
+        model: AgentModel,
+        batch: Dict[str, np.ndarray],
+        clip_param: float,
+        entcoeff: float
+    ) -> Dict[str, tc.Tensor]:
     """
     Compute losses for Proximal Policy Optimization (Schulman et al., 2017).
 
@@ -196,7 +206,11 @@ def _compute_losses(model, batch, clip_param, entcoeff):
 
 
 @tc.no_grad()
-def _metric_update_closure():
+def _metric_update_closure() -> Callable[
+        [MutableExperienceTrajectory, TrajectoryMetrics, Dataset, Namespace, Agent, int, int],
+        Dict[str, np.float64]
+    ]:
+
     """
     A closure encapsulating some queues and a metric update op.
     The queues are used to maintain sliding window estimates of certain metrics.
@@ -207,22 +221,23 @@ def _metric_update_closure():
 
     # we use queues for rolling mean of the following metrics:
     metric_names = [
-        'ep_lengths',
-        'ep_returns',
-        'ep_returns_unclipped'
+        'episode_lengths',
+        'episode_returns',
+        'episode_returns_unclipped'
     ]
     buffers = {
         name: deque(maxlen=100) for name in metric_names
     }
 
     def metric_update_op(
-        seg,
-        dataset,
-        args,
-        agent,
-        iterations_thus_far,
-        env_steps_so_far
-    ):
+        seg: MutableExperienceTrajectory,
+        local_metrics: TrajectoryMetrics,
+        dataset: Dataset,
+        args: Namespace,
+        agent: Agent,
+        iterations_thus_far: int,
+        env_steps_so_far: int
+    ) -> Dict[str, np.float64]:
 
         metrics = dict()
         metrics['iteration'] = iterations_thus_far
@@ -230,7 +245,7 @@ def _metric_update_closure():
 
         # metrics with heterogeneous counts per process need to be updated using an allgather.
         for name in metric_names:
-            metric_locals = seg[name]
+            metric_locals = getattr(local_metrics, name)
             metric_globals = agent.comm.allgather(metric_locals)
             metric_globals_flat = [x for loc in metric_globals for x in loc]
             buffers[name].extend(metric_globals_flat)
@@ -238,7 +253,7 @@ def _metric_update_closure():
             metrics['mean_'+name] = metric_global_mean
 
         metrics['ev_tdlam_before'] = explained_variance(
-            ypred=seg['value_estimates'], y=seg['td_lambda_returns'])
+            ypred=seg.value_estimates, y=seg.td_lambda_returns)
 
         # metrics with homogenous counts per process can be updated using an allreduce.
         losses = dict()
@@ -268,7 +283,12 @@ def _metric_update_closure():
     return metric_update_op
 
 
-def _train(env, agent, args, env_steps_so_far=0):
+def _train(
+        env: Union[gym.Env, gym.Wrapper],
+        agent: Agent,
+        args: Namespace,
+        env_steps_so_far: int = 0
+    ) -> None:
     """
     Train a reinforcement learning agent by Proximal Policy Optimization.
 
@@ -283,15 +303,15 @@ def _train(env, agent, args, env_steps_so_far=0):
 
     iterations_thus_far = 0
     while env_steps_so_far < args.env_steps:
-        seg = next(seg_generator)
+        seg, local_metrics = next(seg_generator)
         seg = _add_vtarg_and_adv(seg, gamma=args.discount_gamma, lam=args.gae_lambda)
-        seg['advantage_estimates'] = standardize(seg['advantage_estimates'])
+        seg.advantage_estimates[:] = standardize(seg.advantage_estimates)
         dataset = Dataset(data_map={
-            'obs': seg['observations'],
-            'acs': seg['actions'],
-            'logprobs': seg['logprobs'],
-            'vtargs': seg['td_lambda_returns'],
-            'advs': seg['advantage_estimates']
+            'obs': seg.observations,
+            'acs': seg.actions,
+            'logprobs': seg.logprobs,
+            'vtargs': seg.td_lambda_returns,
+            'advs': seg.advantage_estimates
         })
         clip_param_annealed = _clip_anneal(
             args.ppo_epsilon, env_steps_so_far, args.env_steps)
@@ -311,7 +331,7 @@ def _train(env, agent, args, env_steps_so_far=0):
         iterations_thus_far += 1
 
         metrics = metric_update_op(
-            seg, dataset, args, agent, iterations_thus_far, env_steps_so_far)
+            seg, local_metrics, dataset, args, agent, iterations_thus_far, env_steps_so_far)
 
         if agent.comm.Get_rank() == ROOT_RANK:
             print_metrics(metrics)
@@ -322,7 +342,11 @@ def _train(env, agent, args, env_steps_so_far=0):
                                 steps=env_steps_so_far)
 
 
-def run(env, agent, args):
+def run(
+        env: Union[gym.Env, gym.Wrapper],
+        agent: Agent,
+        args: Namespace
+    ) -> None:
     """
     Train a reinforcement learning agent by Proximal Policy Optimization.
     On process with MPI rank zero, tries to restore from latest checkpoint.

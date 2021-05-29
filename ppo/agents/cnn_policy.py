@@ -3,6 +3,9 @@ from ppo.agents.policy_head import PolicyHead
 from ppo.agents.value_head import ValueHead
 from ppo.agents.preprocess import ConvPreprocess
 from ppo.utils.init_util import normc_initializer
+from ppo.agents.abstract import AgentModel
+
+
 
 
 class NatureCNN(tc.nn.Module):
@@ -79,7 +82,7 @@ class AsyncCNN(tc.nn.Module):
         return self.conv_stack(x)
 
 
-class CnnPolicy(tc.nn.Module):
+class CnnPolicy(AgentModel):
     def __init__(self, hparams):
         super().__init__()
 
