@@ -3,11 +3,10 @@ import numpy as np
 
 
 class MutableExperienceTrajectory:
-    def __init__(self, horizon, obs_shape):
+    def __init__(self, horizon, dummy_obs):
         self._horizon = horizon
-        self._obs_shape = obs_shape
 
-        self._observations = np.zeros([horizon, *obs_shape], 'float32')
+        self._observations = np.array([dummy_obs for _ in range(horizon)])
         self._actions = np.zeros([horizon], 'int64')
         self._rewards = np.zeros([horizon], 'float32')
         self._dones = np.zeros([horizon], 'float32')
@@ -23,7 +22,7 @@ class MutableExperienceTrajectory:
 
     @property
     def actions(self):
-        return self._observations
+        return self._actions
 
     @property
     def rewards(self):
@@ -57,5 +56,5 @@ class TrajectoryMetrics:
         self.current_episode_return_unclipped = 0.0
 
         self.episode_lengths = []
-        self.episode_return = []
-        self.episode_return_unclipped = []
+        self.episode_returns = []
+        self.episode_returns_unclipped = []

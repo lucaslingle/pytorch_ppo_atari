@@ -3,14 +3,13 @@ Started with https://github.com/openai/baselines/blob/master/baselines/ppo1/ppos
 and ported it to Pytorch, removing all dependencies on baselines modules along the way.
 """
 
-from typing import Union, Generator, Dict, Tuple
+from typing import Union, Generator, Dict, Tuple, Callable
 from argparse import Namespace
 import gym
 import torch as tc
 import numpy as np
 from mpi4py import MPI
 from collections import deque
-from collections.abc import Callable
 from ppo.utils.constants import ROOT_RANK
 from ppo.utils.checkpoint_util import maybe_load_checkpoint, save_checkpoint
 from ppo.utils.comm_util import sync_state, sync_grads
@@ -42,7 +41,7 @@ def _trajectory_segment_generator(
 
     seg = MutableExperienceTrajectory(
         horizon=timesteps_per_actorbatch,
-        obs_shape=o_t.shape)
+        dummy_obs=o_t)
 
     met = TrajectoryMetrics()
 
@@ -204,7 +203,7 @@ def _compute_losses(
 
 @tc.no_grad()
 def _metric_update_closure() -> Callable[
-        [MutableExperienceTrajectory, TrajectoryMetrics, Dataset, Namespace, Agent, int, int],
+        [MutableExperienceTrajectory, TrajectoryMetrics, Dataset, Namespace, Agent, int, int], 
         Dict[str, np.float64]
     ]:
 
@@ -250,7 +249,7 @@ def _metric_update_closure() -> Callable[
             metrics['mean_'+name] = metric_global_mean
 
         metrics['ev_tdlam_before'] = explained_variance(
-            ypred=seg.value_estimates, y=seg.td_lambda_returns)
+            ypred=seg.value_estimates[0:-1], y=seg.td_lambda_returns)
 
         # metrics with homogenous counts per process can be updated using an allreduce.
         losses = dict()
