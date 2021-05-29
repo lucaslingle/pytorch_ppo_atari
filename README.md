@@ -31,7 +31,7 @@ properties:
 
 Compared to TRPO, proximal policy optimization is considerably simpler, easier to implement, and allows recurrent 
 policies without any additional complication. Proximal policy optimization has been used in a number of high-profile 
-projects, such as [OpenAI Five](https://arxiv.org/abs/1912.06680) and [Solving a Rubik's Cube with a Robot Hand](https://arxiv.org/abs/1910.07113). 
+projects, such as [OpenAI Five](https://arxiv.org/abs/1912.06680) and [Solving Rubik's Cube with a Robot Hand](https://arxiv.org/abs/1910.07113). 
 
 ## Getting Started
 
