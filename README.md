@@ -1,37 +1,12 @@
 # pytorch_ppo_atari
 
-Implementation of Proximal Policy Optimization in PyTorch, supporting parallel experience collection. 
+Implementation of [Proximal Policy Optimization](https://arxiv.org/abs/1707.06347) in PyTorch, supporting parallel experience collection. 
 
 ![beamrider gif](assets/beamrider-ppo-paper-defaults/beamrider.gif)
 ![breakout gif](assets/breakout-ppo-paper-defaults/breakout.gif)
 ![mspacman gif](assets/mspacman-ppo-paper-defaults/mspacman.gif)
 ![pong gif](assets/model-ppo1-defaults/pong.gif)
 ![enduro gif](assets/enduro-ppo-paper-defaults/enduro.gif)
-
-## Background
-
-Proximal Policy Optimization is a reinforcement learning algorithm proposed 
-by [Schulman et al., 2017](https://arxiv.org/abs/1707.06347). Compared to vanilla policy gradients 
-and/or actor-critic methods, which optimize the model parameters by estimating the gradient of the reward surface
-and taking a single step, PPO takes inspiration from an approximate natural policy gradient algorithm known as TRPO.
-
-[TRPO](https://arxiv.org/abs/1502.05477) is an example of an information-geometric trust region method, 
-which aims to improve the policy by taking steps of a constant maximum size on the manifold of possible policies.
-The stepsize utilized in TRPO is the state-averaged KL divergence under the current policy; taking steps 
-under TRPO amounts to solving a constrained optimization problem to ensure the step size is at most a certain amount. 
-This is done using conjugate gradient descent to compute the (approximate) natural gradient, followed by a line search 
-to ensure the step taken in parameter space leads to a policy whose state-averaged KL divergence to the previous policy 
-is not larger than a certain amount. 
-
-Compared to vanilla policy gradients and/or actor-critic methods, the PPO algorithm enjoys the following favorable 
-properties:
-- Improved sample efficiency
-- Improved stability
-- Improved reusability of collected experience
-
-Compared to TRPO, proximal policy optimization is considerably simpler, easier to implement, and allows recurrent 
-policies without any additional complication. Proximal policy optimization has been used in a number of high-profile 
-projects, such as [OpenAI Five](https://arxiv.org/abs/1912.06680) and [Solving a Rubik's Cube with a Robot Hand](https://arxiv.org/abs/1910.07113). 
 
 ## Getting Started
 
