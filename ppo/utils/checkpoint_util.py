@@ -17,7 +17,7 @@ def parse_name(filename):
 
 
 def latest_step(base_path):
-    latest_1 = sorted(os.listdir(base_path), key=lambda x: parse_name(x)['steps'])[0]
+    latest_1 = sorted(os.listdir(base_path), key=lambda x: parse_name(x)['steps'])[-1]
     latest_step = parse_name(latest_1)['steps']
     return latest_step
 
