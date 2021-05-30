@@ -107,6 +107,6 @@ from scratch, and simplified it by removing the dependencies on baselines entire
 In the future, we would like to implement training pipelines for other RL algorithms such as 
 [Deep Q-Learning](https://storage.googleapis.com/deepmind-media/dqn/DQNNaturePaper.pdf) 
 and [Prioritized Experience Replay](https://arxiv.org/abs/1511.05952).
-We would also to add support for recurrent policies like LSTMs, SNAILs and Transformers. 
+We would also like to add support for recurrent policies like LSTMs, SNAILs and Transformers. 
 Some of these recurrent architectures may also require special environments in order to provide a value-add, 
 so we have deferred such an implementation to the future. 
