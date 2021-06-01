@@ -107,7 +107,7 @@ Using our heavily-tuned implementation, we obtained the following results:
 | ------------- | ------------- | ----------- | ------------ |
 | Beamrider     |       1590.0  |     1299.2  |      1361.6  |
 | Breakout      |        274.8  |      114.2  |       239.9  |
-| Enduro        |        758.3  |      350.2  |              |
+| Enduro        |        758.3  |      350.2  |       431.9  |
 | Ms Pacman     |       2096.5  |    missing  |      2370.8  |
 | Pong          |         20.7  |       13.7  |        20.7  |
 
