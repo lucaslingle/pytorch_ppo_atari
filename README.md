@@ -105,10 +105,10 @@ Using our heavily-tuned implementation, we obtained the following results:
 
 | Game          | Paper Result  | ppo2 Result | Our Result   |
 | ------------- | ------------- | ----------- | ------------ |
-| Beamrider     |       1590.0  |     1299.2  |              |
+| Beamrider     |       1590.0  |     1299.2  |      1361.6  |
 | Breakout      |        274.8  |      114.2  |       239.9  |
 | Enduro        |        758.3  |      350.2  |              |
-| Ms Pacman     |       2096.5  |    missing  |              |
+| Ms Pacman     |       2096.5  |    missing  |      2370.8  |
 | Pong          |         20.7  |       13.7  |        20.7  |
 
 Due to time constraints, we did not test every game, but simply picked five that appeared to contain representative challenges of the broader Atari suite. 
