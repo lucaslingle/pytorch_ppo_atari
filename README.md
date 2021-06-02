@@ -2,10 +2,10 @@
 
 Implementation of [Proximal Policy Optimization](https://arxiv.org/abs/1707.06347) in PyTorch, supporting parallel experience collection. 
 
-![beamrider gif](assets/beamrider-ppo-paper-defaults/beamrider.gif)
+![pong gif](assets/model-ppo1-defaults/pong.gif)
 ![breakout gif](assets/breakout-ppo-paper-defaults/breakout.gif)
 ![mspacman gif](assets/mspacman-ppo-paper-defaults/mspacman.gif)
-![pong gif](assets/model-ppo1-defaults/pong.gif)
+![beamrider gif](assets/beamrider-ppo-paper-defaults/beamrider.gif)
 ![enduro gif](assets/enduro-ppo-paper-defaults/enduro.gif)
 
 ## Background
