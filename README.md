@@ -57,7 +57,7 @@ Then run
 ```bash
 conda create --name ppo python=3.8.1
 conda activate ppo
-git clone https://github.com/lucaslingle/ppo
+git clone https://github.com/lucaslingle/pytorch_ppo_atari
 cd ppo
 pip install -e .
 ```
