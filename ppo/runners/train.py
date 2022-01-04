@@ -305,8 +305,7 @@ def _train(env, agent, args, env_steps_so_far=0):
                 losses['total_loss'].backward()
                 sync_grads(model=agent.model, comm=agent.comm)
                 agent.optimizer.step()
-
-        agent.scheduler.step()
+                agent.scheduler.step()
 
         env_steps_so_far += args.timesteps_per_actorbatch * agent.comm.Get_size()
         iterations_thus_far += 1
