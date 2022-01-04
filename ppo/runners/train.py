@@ -340,7 +340,8 @@ def run(env, agent, args):
             checkpoint_dir=args.checkpoint_dir,
             model_name=args.model_name,
             agent=agent)
-
+    
     env_steps_so_far = agent.comm.bcast(env_steps_so_far, root=ROOT_RANK)
     sync_state(agent=agent, comm=agent.comm, root=ROOT_RANK)
     _train(env=env, agent=agent, args=args, env_steps_so_far=env_steps_so_far)
+    
